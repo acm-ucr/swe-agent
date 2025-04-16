@@ -1,0 +1,6 @@
+[submodule "shared/ollama-tools"]
+	path = shared/ollama-tools
+	url = https://github.com/meirm/ollama-tools.git
+[submodule "shared/ollama_tools"]
+	path = shared/ollama_tools
+	url = https://github.com/meirm/ollama-tools.git
