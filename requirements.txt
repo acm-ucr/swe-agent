@@ -1,0 +1,4 @@
+transformers==4.50.3 
+smolagents==1.13.0
+numpy==2.2.4        
+ollama==0.4.7                 
