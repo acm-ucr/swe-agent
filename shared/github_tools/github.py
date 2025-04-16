@@ -197,5 +197,47 @@ def main():
     except requests.exceptions.HTTPError as e:
         print(f"Error creating PR: {e.response.json()}")
 
+def fetch_files_from_codebase(file_paths: list) -> dict:
+    """
+    Fetches files from a local repository's codebase.
+    
+    Args:
+        file_paths: A list of specific file paths to fetch.
+        
+    Returns:
+        A dictionary where keys are file paths and values are file contents as strings.
+        If a file cannot be opened (e.g., it doesn't exist), the path will not be included in the result.
+    """
+    file_contents = {}
+    for path in file_paths:
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                file_contents[path] = file.read()
+        except FileNotFoundError:
+            pass
+    return file_contents
+
+def edit_files_from_codebase(file_updates: dict) -> dict:
+    """
+    Overwrites multiple files in the local codebase with new content.
+    Args:
+        file_updates (dict): A dictionary where:
+            - Keys are file paths (relative or absolute).
+            - Values are the new content (as strings) to write into each file.
+    Returns:
+        dict: A dictionary summarizing the result for each file:
+            - If successful: { "file_path": "success" }
+            - If failed: { "file_path": "error: <error message>" }
+    """
+    results = {}
+    for file_path, new_content in file_updates.items():
+        try:
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+            results[file_path] = "success"
+        except Exception as e:
+            results[file_path] = f"error: {str(e)}"
+    return results
+
 if __name__ == "__main__":
     main()
