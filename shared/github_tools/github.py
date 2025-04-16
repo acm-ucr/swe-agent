@@ -77,6 +77,44 @@ def close_github_issue(owner: str, repo: str, issue_number: int) -> dict:
     print("Closed issue:", issue.get("html_url", ""))
     return issue
 
+def merge_github_branch(owner: str, repo: str, head: str, base: str = "main") -> dict:
+    """
+    Merges a GitHub branch into another branch in the specified repository.
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    head: The name of the branch to merge from.
+    base: The name of the branch to merge into (defaults to main).
+    """
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/merges"
+    payload = {
+        "base": base,
+        "head": head,
+        "commit_message": f"Merge {head} into {base}"
+    }
+    response = requests.post(url, headers=HEADERS, json=payload)
+    if response.status_code != 201:
+        print("Error merging branches:", response.content)
+        return None
+    merge_result = response.json()
+    print(f"Successfully merged {head} into {base}")
+    return merge_result
+
+def close_github_pull_request(owner: str, repo: str, pull_number: int) -> dict:
+    """
+    Closes a GitHub pull request in the specified repository.
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    pull_number: The number of the pull request to close.
+    """
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/pulls/{pull_number}"
+    response = requests.patch(url, headers=HEADERS, json={"state": "closed"})
+    if response.status_code != 200:
+        print("Error closing pull request:", response.content)
+        return None
+    pr = response.json()
+    print("Closed pull request:", pr.get("html_url", ""))
+    return pr
+
 def get_pr_count(owner: str, repo: str) -> dict:
     """
     Retrieves the number of pull requests in a GitHub repository.
@@ -196,6 +234,48 @@ def main():
         pr_response = create_pull_request(owner, repo, issue_number, branch_name, base=base)
     except requests.exceptions.HTTPError as e:
         print(f"Error creating PR: {e.response.json()}")
+
+def fetch_files_from_codebase(file_paths: list) -> dict:
+    """
+    Fetches files from a local repository's codebase.
+    
+    Args:
+        file_paths: A list of specific file paths to fetch.
+        
+    Returns:
+        A dictionary where keys are file paths and values are file contents as strings.
+        If a file cannot be opened (e.g., it doesn't exist), the path will not be included in the result.
+    """
+    file_contents = {}
+    for path in file_paths:
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                file_contents[path] = file.read()
+        except FileNotFoundError:
+            pass
+    return file_contents
+
+def edit_files_from_codebase(file_updates: dict) -> dict:
+    """
+    Overwrites multiple files in the local codebase with new content.
+    Args:
+        file_updates (dict): A dictionary where:
+            - Keys are file paths (relative or absolute).
+            - Values are the new content (as strings) to write into each file.
+    Returns:
+        dict: A dictionary summarizing the result for each file:
+            - If successful: { "file_path": "success" }
+            - If failed: { "file_path": "error: <error message>" }
+    """
+    results = {}
+    for file_path, new_content in file_updates.items():
+        try:
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(new_content)
+            results[file_path] = "success"
+        except Exception as e:
+            results[file_path] = f"error: {str(e)}"
+    return results
 
 if __name__ == "__main__":
     main()
