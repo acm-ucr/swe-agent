@@ -205,6 +205,23 @@ def total_prs(owner, repo, head, base):
     response.raise_for_status()
     return len(response.json()) 
 
+
+def create_new_branch(owner, repo, new_branch, base = "main"):
+    url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/git/refs/heads/{base}"
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code != 200:
+        print("Error retrieving sha", response.content)
+        return None
+    sha = response.json()["object"]["sha"]  
+    post_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/git/refs"
+    payload = {
+        "ref": f"refs/heads/{new_branch}",
+        "sha": sha
+    }
+    post_response = requests.post(post_url, headers = HEADERS, json= payload)
+    if post_response.status_code == 201:
+        print("Branch created.")
+    
 def main():
     owner = "Jeli04"
     repo = "SWE-Agent-test"
