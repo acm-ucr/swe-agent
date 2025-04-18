@@ -1,5 +1,5 @@
 # SWE Agent
-This is the first iteration of local, distributed system SWE agent. The goal of this first iteration is to automate the creation of the frontend and backend of a basic website when given a user prompt and the figma assets. 
+This is the first iteration of a local, distributed SWE agent system. The goal of this first iteration is to automate the creation of the frontend and backend of a basic website when given a user prompt and the figma assets. 
 
 
 ## Getting Started 
