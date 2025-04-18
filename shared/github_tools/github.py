@@ -15,11 +15,12 @@ HEADERS = {
         "Accept": "application/vnd.github+json"
         }
 
-def stage_and_commit_files(file_paths: list, commit_message: str) -> bool:
+def stage_and_commit_files(repo_path: str, file_paths: list, commit_message: str) -> bool:
     """
     Stages and commits specified files to the local Git repository.
 
     Args:
+        repo_path: The path to the local Git repository.
         file_paths: A list of file paths to stage for commit.
         commit_message: The commit message to use.
 
@@ -29,7 +30,7 @@ def stage_and_commit_files(file_paths: list, commit_message: str) -> bool:
     try:
 
         # Initialize the repo object for the current directory
-        repo = Repo(".")
+        repo = Repo(repo_path)
 
         # Stage the specified files
         for file_path in file_paths:
