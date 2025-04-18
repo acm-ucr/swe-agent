@@ -1,6 +1,6 @@
 import os
 import requests
-from git import Repo
+from git import Repo, exc
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
@@ -40,14 +40,14 @@ def stage_and_commit_files(file_paths: list, commit_message: str) -> bool:
 
         print(f"Successfully committed {len(file_paths)} files with message: '{commit_message}'")
         return True
-    except git.exc.GitCommandError as e:
+    except exc.GitCommandError as e:
         print(f"Git command error: {str(e)}")
         return False
     except Exception as e:
         print(f"Error committing files: {str(e)}")
         return False
 
-def get_issue_count(owner: str, repo: str) -> dict:
+def get_issue_count(owner: str, repo: str) -> int:
     """
     Retrieves the number of issues in a GitHub repository.
     owner: The owner of the GitHub repository.
