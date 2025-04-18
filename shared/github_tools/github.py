@@ -1,5 +1,6 @@
 import os
 import requests
+from git import Repo
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
@@ -10,9 +11,41 @@ if not GITHUB_TOKEN:
     raise ValueError("Please set your GITHUB_TOKEN environment variable.")
 
 HEADERS = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json"
-}
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+        }
+
+def stage_and_commit_files(file_paths: list, commit_message: str) -> bool:
+    """
+    Stages and commits specified files to the local Git repository.
+
+    Args:
+        file_paths: A list of file paths to stage for commit.
+        commit_message: The commit message to use.
+
+    Returns:
+        bool: True if the commit was successful, False otherwise.
+    """
+    try:
+
+        # Initialize the repo object for the current directory
+        repo = Repo(".")
+
+        # Stage the specified files
+        for file_path in file_paths:
+            repo.git.add(file_path)
+
+        # Create the commit with the provided message
+        repo.git.commit("-m", commit_message)
+
+        print(f"Successfully committed {len(file_paths)} files with message: '{commit_message}'")
+        return True
+    except git.exc.GitCommandError as e:
+        print(f"Git command error: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"Error committing files: {str(e)}")
+        return False
 
 def get_issue_count(owner: str, repo: str) -> dict:
     """
@@ -87,10 +120,10 @@ def merge_github_branch(owner: str, repo: str, head: str, base: str = "main") ->
     """
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/merges"
     payload = {
-        "base": base,
-        "head": head,
-        "commit_message": f"Merge {head} into {base}"
-    }
+            "base": base,
+            "head": head,
+            "commit_message": f"Merge {head} into {base}"
+            }
     response = requests.post(url, headers=HEADERS, json=payload)
     if response.status_code != 201:
         print("Error merging branches:", response.content)
@@ -151,7 +184,7 @@ def create_pull_request(owner, repo, issue_number, branch_name, base="main"):
 
     # Use HEADERS so that our token and proper Accept header are included.
     headers = HEADERS
-    
+
     # Retrieve the issue details from GitHub
     issue_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/issues/{issue_number}"
     issue_response = requests.get(issue_url, headers=headers)
@@ -159,7 +192,7 @@ def create_pull_request(owner, repo, issue_number, branch_name, base="main"):
         print("Error retrieving issue details:", issue_response.content)
         return None
     issue_details = issue_response.json()
-    
+
     # Check if the issue already has a linked pull request.
     if "pull_request" in issue_details:
         print(f"Issue #{issue_number} already has a linked pull request. Skipping creation.")
@@ -170,17 +203,17 @@ def create_pull_request(owner, repo, issue_number, branch_name, base="main"):
     issue_body = issue_details.get("body", "")
     pr_title = f"[#{issue_number}] {issue_title}"
     pr_body = f"Closes #{issue_number}\n\n{issue_body}"
-    
+
     # Prepare the payload to create the pull request.
     pr_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/pulls"
     payload = {
-        "title": pr_title,
-        "body": pr_body,
-        "head": branch_name,  # This should be the branch you're on, i.e., "test"
-        "base": base         # The branch to merge into, i.e., "main"
-    }
+            "title": pr_title,
+            "body": pr_body,
+            "head": branch_name,  # This should be the branch you're on, i.e., "test"
+            "base": base         # The branch to merge into, i.e., "main"
+            }
     print("Payload for PR creation:", payload)
-    
+
     # Create the pull request.
     pr_response = requests.post(pr_url, headers=headers, json=payload)
     if pr_response.status_code != 201:
@@ -203,7 +236,7 @@ def total_prs(owner, repo, head, base):
     params = {"head": f"{owner}:{head}", "base": base, "state": "all"}
     response = requests.get(url, headers=HEADERS, params=params)
     response.raise_for_status()
-    return len(response.json()) 
+    return len(response.json())
 
 
 def create_new_branch(owner, repo, new_branch, base = "main"):
@@ -219,16 +252,16 @@ def create_new_branch(owner, repo, new_branch, base = "main"):
     if response.status_code != 200:
         print("Error retrieving sha", response.content)
         return None
-    sha = response.json()["object"]["sha"]  
+    sha = response.json()["object"]["sha"]
     post_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/git/refs"
     payload = {
-        "ref": f"refs/heads/{new_branch}",
-        "sha": sha
-    }
+            "ref": f"refs/heads/{new_branch}",
+            "sha": sha
+            }
     post_response = requests.post(post_url, headers = HEADERS, json= payload)
     if post_response.status_code == 201:
         print("Branch created.")
-    
+
 def main():
     owner = "Jeli04"
     repo = "SWE-Agent-test"
@@ -246,7 +279,7 @@ def main():
 
     # Since you are on your "test" branch, set branch_name accordingly.
     branch_name = "test"  # This is your current branch
-    head = branch_name  
+    head = branch_name
     base = "main"  # Assuming you want to merge into the main branch
 
     # Print the number of PRs from "test" to "main"
@@ -262,10 +295,10 @@ def main():
 def fetch_files_from_codebase(file_paths: list) -> dict:
     """
     Fetches files from a local repository's codebase.
-    
+
     Args:
         file_paths: A list of specific file paths to fetch.
-        
+
     Returns:
         A dictionary where keys are file paths and values are file contents as strings.
         If a file cannot be opened (e.g., it doesn't exist), the path will not be included in the result.
