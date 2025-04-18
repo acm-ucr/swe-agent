@@ -207,6 +207,13 @@ def total_prs(owner, repo, head, base):
 
 
 def create_new_branch(owner, repo, new_branch, base = "main"):
+    """
+    Creates a new branch in the specified GitHub repository.
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    new_branch: The name of the new branch to create.
+    base: The name of the base branch to branch from (default is "main").
+    """
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/git/refs/heads/{base}"
     response = requests.get(url, headers=HEADERS)
     if response.status_code != 200:
