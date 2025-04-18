@@ -228,6 +228,20 @@ def create_new_branch(owner, repo, new_branch, base = "main"):
     post_response = requests.post(post_url, headers = HEADERS, json= payload)
     if post_response.status_code == 201:
         print("Branch created.")
+
+    
+    def fetch_commit_history(owner: str, repo: str):
+        """
+        Fetch commit history of the repo
+        owner: The owner of the GitHub repository.
+        repo: The name of the GitHub repository.
+        """
+        url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/commits/main"
+        params = {}
+        response = requests.get(url, headers = HEADERS, params = params)
+        return response.json()
+
+    
     
 def main():
     owner = "Jeli04"
