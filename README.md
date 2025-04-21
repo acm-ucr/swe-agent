@@ -6,7 +6,7 @@ This is the first iteration of a local, distributed SWE agent system. The goal o
 Make sure to clone the repo with submodules
 
 ```
-    git clone git clone --recurse-submodules https://github.com/acm-ucr/swe-agent.git
+    git clone --recurse-submodules https://github.com/acm-ucr/swe-agent.git
 ```
 
 
