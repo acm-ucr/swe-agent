@@ -1,6 +1,6 @@
 import ollama 
 from shared.ollama_tools.ollama_tools import generate_function_description
-from shared.github_tools.github import create_github_issue, get_issue_count
+from shared.github_tools import create_github_issue, get_issue_count
 from smolagents import HfApiModel, CodeAgent
 
 """
