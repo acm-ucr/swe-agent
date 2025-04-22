@@ -1,5 +1,5 @@
 import ollama 
-
+from agents.node import Node
 
 class CodingAgent(Node):
     def __init__(self, model_name, backend, sys_msg):
