@@ -40,7 +40,7 @@ def edit_files_from_codebase(file_updates: dict) -> dict:
             results[file_path] = f"error: {str(e)}"
     return results
 
-def create_file(name: str, type: str, path: str = "", content: str = ""):
+def create_file(name: str, type: str, path: str = "", content: str = "") -> None:
     """
     Creates new file of the file type based on the arguements name and type
     name: The name of the file
