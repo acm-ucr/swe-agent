@@ -1,12 +1,12 @@
 # SWE Agent
-This is the first iteration of local, distributed system SWE agent. The goal of this first iteration is to automate the creation of the frontend and backend of a basic website when given a user prompt and the figma assets. 
+This is the first iteration of a local, distributed SWE agent system. The goal of this first iteration is to automate the creation of the frontend and backend of a basic website when given a user prompt and the figma assets. 
 
 
 ## Getting Started 
 Make sure to clone the repo with submodules
 
 ```
-    git clone git clone --recurse-submodules https://github.com/acm-ucr/swe-agent.git
+    git clone --recurse-submodules https://github.com/acm-ucr/swe-agent.git
 ```
 
 
