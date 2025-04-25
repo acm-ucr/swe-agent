@@ -8,9 +8,10 @@ from smolagents import HfApiModel, CodeAgent
     Handles the model backend between huggingface and ollama
 """
 class Node():
-    def __init__(self, model_name, backend, sys_msg, max_new_tokens=1000):
+    def __init__(self, model_name, backend, sys_msg="You are a helpful assistant", max_new_tokens=1000):
         self.model_name = model_name
         self.backend = backend
+        self.sys_msg = sys_msg
         assert self.backend in ["huggingface", "ollama"], f"Unsupported backend: {self.backend}"
         
         if self.backend == "ollama":
@@ -36,9 +37,10 @@ class Node():
         Instructs the agent to perform a task.
         """
         if self.backend == "ollama":
-            response = ollama.chat(model=self.model_name, messages=[
-                        {'role': 'user', 'content': instruction}
-                    ])
+            response = ollama.chat(model=self.model_name, 
+                                    messages=[{"role": "system", "content": self.sys_msg}] + 
+                                             [{"role": "user", "content": instruction}],
+                                    tools=self.tools)
             response = response['message']['content']
         elif self.backend == "huggingface":
             response = self.model.run(instruction)
@@ -60,3 +62,9 @@ if __name__ == "__main__":
     node.add_tool(get_issue_count)
     print(node.tools)
 
+    output = node.instruct("Hello")
+    print(output)
+
+    # will not work since we it hasn't excuted the function
+    output = node.instruct("Get the issue count from the repo Jeli04/SWE-Agent-test where the owner is Jeli04")
+    print(output)
