@@ -1,6 +1,8 @@
 import os
 import requests
 from git import Repo, exc
+import subprocess
+
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
@@ -352,8 +354,87 @@ def edit_files_from_codebase(file_updates: dict) -> dict:
             results[file_path] = f"error: {str(e)}"
     return results
 
-    
-def main():
+
+
+def clone_repo(owner: str, repo: str, destination: str = ".") -> str:
+    """
+    Clones a GitHub repository using Git.
+
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    destination: The directory where the repository will be cloned.
+                 Defaults to the current working directory.
+
+    Returns the full path to the cloned repository.
+    Raises an error if cloning fails.
+    """
+    repo_url = f"https://github.com/{owner}/{repo}.git"
+    repo_path = os.path.join(destination, repo)
+
+    try:
+        subprocess.run(["git", "clone", repo_url, repo_path], check=True)
+        print(f"Cloned {repo} into {repo_path}")
+        return repo_path
+    except subprocess.CalledProcessError as e:
+        print("Clone failed:", e)
+        raise
+
+
+
+def ensure_repo_cloned(owner: str, repo: str, destination: str = ".") -> str:
+    """
+    Ensures that the GitHub repository is cloned locally.
+    If not already cloned, clones it.
+
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    destination: Directory to clone into. Defaults to current directory.
+
+    Returns the local path to the repository.
+    """
+    repo_path = os.path.join(destination, repo)
+
+    if not os.path.exists(repo_path):
+        print(f"{repo} not found at {repo_path}, cloning...")
+        try:
+            clone_repo(owner, repo, destination)
+        except Exception as e:
+            print(f"Unable to clone repo: {e}")
+            raise  # re-raise so your agent knows it failed
+    else:
+        print(f"{repo} already cloned at {repo_path}")
+
+    return repo_path
+
+
+def repo_to_textTree(repo_path):
+    fileTreeText = ""
+    allowed_files = {".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".json"}
+
+    for dirpath,dirnames,filenames in os.walk(repo_path):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        for filename in filenames:
+            name,extension = os.path.splitext(filename)
+            if extension not in allowed_files:
+                continue
+
+            full_file_path = os.path.join(dirpath,filename)
+            if os.path.getsize(full_file_path) >= 1000000:
+                    continue
+            try:
+                with open(full_file_path,"r", encoding="utf-8") as f:
+                    content = f.read()
+                relative_path = os.path.relpath(full_file_path,repo_path) 
+                fileTreeText += f"\n/{relative_path}\n---\n{content}\n"
+            except Exception as e:
+                print(f"Skipping file {full_file_path}: {e}")
+                continue
+    return fileTreeText
+
+
+
+
+def main(): 
     owner = "Jeli04"
     repo = "SWE-Agent-test"
     issue_number = 4
@@ -385,4 +466,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    repo_path = ensure_repo_cloned("jeli04","acm-hydra")
+    tree = repo_to_textTree(repo_path)
+    with open("my_file.txt", "a", encoding="utf-8") as f:
+        f.write(tree)
+
