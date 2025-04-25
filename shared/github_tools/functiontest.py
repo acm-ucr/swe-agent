@@ -17,10 +17,10 @@ def test_close_github_pull_request():
     print("\nTesting: close_github_pull_request")
     with patch('requests.patch') as mocked_patch:
         mocked_patch.return_value.status_code = 200
-        mocked_patch.return_value.json.return_value = {"html_url": "htt-=o07ikbhm vp://example.com/pull/1"}
+        mocked_patch.return_value.json.return_value = {"html_url": "http://example.com/pull/1"}
 
         result = close_github_pull_request("owner", "repo", 1)
-        assert result["html_url"] == "http://example.com/pull/1"
+        assert result["html_url"] == "http://example.com/pull/1", f"Expected HTML URL, got {result}"
         
 
 def test_fetch_files_from_codebase():
@@ -55,7 +55,7 @@ def test_edit_files_from_codebase():
 def main():
     print("\nRunning all tests...\n")
     test_merge_github_branch()
-    ##test_close_github_pull_request()
+    test_close_github_pull_request()
     test_fetch_files_from_codebase()
     test_edit_files_from_codebase()
     print("\nAll tests completed successfully!")
