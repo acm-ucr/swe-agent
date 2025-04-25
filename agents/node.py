@@ -1,4 +1,4 @@
-import ollama 
+import ollama
 from shared.ollama_tools.ollama_tools import generate_function_description
 from shared.github_tools import create_github_issue, get_issue_count
 from smolagents import HfApiModel, CodeAgent
@@ -12,7 +12,7 @@ class Node():
         self.model_name = model_name
         self.backend = backend
         assert self.backend in ["huggingface", "ollama"], f"Unsupported backend: {self.backend}"
-        
+
         if self.backend == "ollama":
             self.model = ollama.create(model='example', from_=self.model_name, system=sys_msg)
         elif self.backend == "huggingface":
@@ -20,7 +20,7 @@ class Node():
             model = HfApiModel(model_id=self.model_name, max_new_tokens=max_new_tokens)
             self.model = CodeAgent(tools=[], model=model, add_base_tools=True)
         self.tools = []
-    
+
     def add_tool(self, tool):
         """
         Adds a tool to the node.
@@ -43,14 +43,14 @@ class Node():
         elif self.backend == "huggingface":
             response = self.model.run(instruction)
 
-        return response 
-    
+        return response
+
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
     import os
 
-    load_dotenv() 
+    load_dotenv()
 
     node = Node("qwen2.5:7b", "ollama", "You are a helpful assistant.")
     print(node.model_name)
