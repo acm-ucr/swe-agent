@@ -7,7 +7,7 @@ def publish_text(context, receiver_ip, port, message):
     socket.connect(f"tcp://{receiver_ip}:{port}")
 
     for _ in range(5):
-        socket.send_string(f"default {message}")  # apparently i need topics? tf?
+        socket.send_string(f"default {message}")  # apparently i need topics? tf? i will use default
         print(f"Sent: {message}")
         time.sleep(1)
 
