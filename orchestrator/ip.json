@@ -1,0 +1,15 @@
+{
+  "devices": {
+    "sender": {
+      "ip": "10.13.194.154",
+      "port": 5555,
+      "model": 0
+    },
+    "receiver": {
+      "ip": "10.13.41.137",
+      "port": 5555,
+      "model": 1,
+      "handshake_port": 6000
+    }
+  }
+}
