@@ -3,24 +3,24 @@ import json
 import time
 
 def main():
-    
-    with open("orchestrator/ip.json") as f:
+    topics = ["Topic"]
+    with open("ip.json") as f:
         config = json.load(f)
-
+    
     receiver = config["devices"]["receiver"]
     context = zmq.Context()
 
     print("Attempting handshake...")
-    socket = context.socket(zmq.REQ)
-    socket.connect(f"tcp://{receiver['ip']}:{receiver['handshake_port']}")
+    socket = context.socket(zmq.PUB)
+    socket.bind(f"tcp://*:5555")
     
-    socket.send_string("handshake")
     try:
-        response = socket.recv_string(flags=zmq.NOBLOCK)
-        if response == "ack":
-            print("Handshake successful. Proceed with publishing.")
-        else:
-            print(f"Unexpected response: {response}")
+        start_time = time.time()
+        duration = 10
+        while time.time() - start_time < duration:
+            for i , topic in enumerate(topics):
+                socket.send_string(f"{topic} [`i am the rizzler`]")
+                time.sleep(2)
     except zmq.Again:
         print("Handshake timed out. Exiting.")
     
