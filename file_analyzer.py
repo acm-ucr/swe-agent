@@ -57,7 +57,7 @@ Do not include any other text or formatting, just the JSON array."""
     retry_count = 0
     while retry_count < max_retries:
         response = ollama.chat(
-            model='phi4',
+            model='cogito:3b',
             messages=[{'role': role, 'content': content} for role, content in messages]
         )
 
