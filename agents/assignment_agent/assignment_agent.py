@@ -1,70 +1,92 @@
 import json
+import sys
+sys.path.append("/Users/risaonishi/Downloads/CS/swe-agent/agents")
 from agents.node import Node
 
 
+# === Classification agent class ===
 class AssignmentAgent(Node):
-    def __init__(self, model_name, backend, sys_msg):
+    def __init__(self, model_name, backend, sys_msg=""):
         super().__init__(model_name, backend, sys_msg)
 
-    def classify_tasks(self, prompt):
+    def classify_task(self, task_id, description):
         """
-        Classify tasks based on their complexity using the LLM.
-
-        Args:
-            prompt (str): A prompt containing tasks to classify.
-
-        Returns:
-            dict: A dictionary with classified tasks.
+        Classify a single task as either 'regular_model' or 'thinking_model'
         """
-        response = self.instruct(prompt)
+        prompt = f"""
+                You are a task classifier. You can only reply with one word.
+
+                Classify the task as:
+                - "regular_model" for simple tasks (e.g. UI layout, static styling, project setup)
+                - "thinking_model" for complex tasks (e.g. backend logic, authentication, APIs, or DB work)
+
+                Return **only** the category string — either "regular_model" or "thinking_model".
+                Do **not** include explanations or reasoning. You will be punished for including additional reasoning in your answer.
+
+                Task:
+                {task_id}: {description}
+                """
+
+        category = self.instruct(prompt).strip().replace('"', '')
+
+        if category not in {"regular_model", "thinking_model"}:
+            raise ValueError(f"Invalid category '{category}' returned for task {task_id}")
+        
+        return category
+
+
+# === Main function ===
+def classify_task_list(agent, task_list):
+    result = {"regular_model": [], "thinking_model": []}
+
+    for task in task_list:
+        task_id = task.get("id")
+        desc = task.get("description")
+        if not task_id or not desc:
+            print(f"Skipping invalid task: {task}")
+            continue
 
         try:
-            result = json.loads(response)
-        except json.JSONDecodeError:
-            raise ValueError("The response is not in valid JSON format.")
+            category = agent.classify_task(task_id, desc)
+            result[category].append(task)
+            print(f"✓ Task {task_id} → {category}")
+        except Exception as e:
+            print(f"✗ Failed to classify task {task_id}: {e}")
 
-        # Check for required keys
-        required_keys = {"regular_model", "thinking_model"}
-        if not required_keys.issubset(result.keys()):
-            raise ValueError(
-                f"Response JSON must contain keys: {required_keys}. Got: {list(result.keys())}"
-            )
-
-        return result
+    return result
 
 
+# === Script entry point ===
 if __name__ == "__main__":
-    from dotenv import load_dotenv
     import os
+    MODEL = "cogito:3b"
+    BACKEND = "ollama"
+    PROMPT = """
+                You are a task classifier. You can only reply with one word.
 
-    load_dotenv()
+                Classify the task as:
+                - "regular_model" for simple tasks (e.g. UI layout, static styling, project setup)
+                - "thinking_model" for complex tasks (e.g. backend logic, authentication, APIs, or DB work)
 
-    MODEL = "qwen3:4b"
-    PROMPT = """You are a software task classifier.
+                Return **only** the category string — either "regular_model" or "thinking_model".
+                Do **not** include explanations or reasoning. You will be punished for including additional reasoning in your answer.
+                """
 
-                    Classify each task based on its complexity using the description. Use the following rules:
-                    - "regular": project setup, simple UI layout, static styling
-                    - "complex": logic-heavy backend work, database or auth integration, API calls
+    # Load tasks from JSON
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    task_list_path = os.path.join(current_dir, "task_list_1000.json")
 
-                    Return your response as a JSON object with two keys:
-                    - "regular_model": [list of tasks]
-                    - "thinking_model": [list of tasks]
-                    Each task must contain: id, description.
-                    Only return valid JSON. No extra explanation."""
-
-    agent = AssignmentAgent(MODEL, "ollama", PROMPT)
-
-    with open("task_list.json", "r") as f:
+    with open(task_list_path, "r") as f:
         task_list = json.load(f)
 
-    instruction = PROMPT + "\n\nTasks:\n" + json.dumps(task_list, indent=2)
+    agent = AssignmentAgent(MODEL, BACKEND, PROMPT)
 
-    # Classify tasks
     print("=== Assigning Tasks ===")
-    try:
-        result = agent.classify_tasks(instruction)
-        with open("model_assignment.json", "w") as f:
-            json.dump(result, f, indent=2)
-        print("Classification complete. Saved to model_assignment.json")
-    except ValueError as e:
-        print("Failed to parse model output (invalid JSON):", e)
+    result = classify_task_list(agent, task_list)
+
+    # Save to file
+    output_path = os.path.join(current_dir, "model_assignment.json")
+    with open(output_path, "w") as f:
+        json.dump(result, f, indent=2)
+
+    print(f"\n🎉 Classification complete. Saved to {output_path}")
