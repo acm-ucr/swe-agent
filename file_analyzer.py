@@ -5,6 +5,18 @@ import sys
 import argparse
 from typing import Dict, List, Tuple
 
+# Global debug flag. Run with --debug to enable printing of AI responses and other logs
+DEBUG = False
+
+def print_ai_response(content: str, prefix: str = "AI Response:"):
+    """Helper function to print AI responses in a readable format"""
+    if not DEBUG:
+        return
+    print(f"\n{prefix}")
+    print("-" * 80)
+    print(content)
+    print("-" * 80)
+
 def analyze_file_tree(file_tree: str, task: str, max_retries: int = 3) -> str:
     """
     Analyzes a file tree and task to determine relevant files that need modification.
@@ -64,6 +76,8 @@ Do not include any other text or formatting, just the JSON array."""
 
         # Extract the JSON array from the response
         content = response['message']['content']
+        print_ai_response(content, f"Modify Files - Attempt {retry_count + 1}")
+        
         if '<thinking>' in content:
             # Extract everything after the last </thinking> tag
             json_part = content.split('</thinking>')[-1].strip()
@@ -74,10 +88,10 @@ Do not include any other text or formatting, just the JSON array."""
             # Parse and validate the JSON
             result = json.loads(json_part)
             return json.dumps(result)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             retry_count += 1
             if retry_count < max_retries:
-                logging.warning(f"Attempt {retry_count}: Invalid JSON response. Retrying...")
+                logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
                 messages.append(('assistant', content))
                 messages.append(('user', correction_prompt))
             else:
@@ -144,6 +158,8 @@ Do not include any other text or formatting, just the JSON array."""
         )
 
         content = response['message']['content']
+        print_ai_response(content, f"Create Files - Attempt {retry_count + 1}")
+        
         if '<thinking>' in content:
             json_part = content.split('</thinking>')[-1].strip()
         else:
@@ -154,10 +170,10 @@ Do not include any other text or formatting, just the JSON array."""
             if not isinstance(result, list):
                 raise json.JSONDecodeError("Invalid structure", json_part, 0)
             return result
-        except (json.JSONDecodeError, TypeError):
+        except (json.JSONDecodeError, TypeError) as e:
             retry_count += 1
             if retry_count < max_retries:
-                logging.warning(f"Attempt {retry_count}: Invalid JSON response. Retrying...")
+                logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
                 messages.append(('assistant', content))
                 messages.append(('user', correction_prompt))
             else:
@@ -177,17 +193,21 @@ def analyze_task(file_tree: str, task: str) -> Dict[str, List[str]]:
     Returns:
         Dict[str, List[str]]: Dictionary containing all file actions needed
     """
+    if DEBUG:
+        print("\nAnalyzing task:", task)
+        print("File tree:", file_tree)
+    
     # Get files to modify
-    modify_result = json.loads(analyze_file_tree(file_tree, task))
-    if not isinstance(modify_result, list):
+    modify_result_str = analyze_file_tree(file_tree, task)
+    try:
+        modify_result = json.loads(modify_result_str)
+        if not isinstance(modify_result, list):
+            modify_result = []
+    except json.JSONDecodeError:
         modify_result = []
     
     # Get files to create
     create_result = determine_files_to_create(file_tree, task)
-    
-    # Verify that files to modify exist in the file tree
-    existing_files = set(file_tree.split('\n'))
-    modify_result = [f for f in modify_result if f in existing_files]
     
     # Log the results
     if modify_result:
@@ -203,7 +223,12 @@ def analyze_task(file_tree: str, task: str) -> Dict[str, List[str]]:
 def main():
     parser = argparse.ArgumentParser(description='File Tree Analyzer')
     parser.add_argument('--logging', type=str, default='INFO', help='Logging level')
+    parser.add_argument('--debug', action='store_true', help='Enable debug output')
     args = parser.parse_args()
+
+    # Set global debug flag
+    global DEBUG
+    DEBUG = args.debug
 
     # Configure logging
     logging.basicConfig(level=args.logging, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -218,12 +243,14 @@ notrelevant.tsx"""
     task1 = "add a \"hello world\" to the main page.tsx"
     print("\nTask 1 - Simple Modification:")
     result1 = analyze_task(file_tree, task1)
+    print("\nFinal Result 1:")
     print(json.dumps(result1, indent=2))
     
     # Example 2: Creating new component
     task2 = "create a new button component with a primary style"
     print("\nTask 2 - Creating New Component:")
     result2 = analyze_task(file_tree, task2)
+    print("\nFinal Result 2:")
     print(json.dumps(result2, indent=2))
 
 if __name__ == "__main__":
