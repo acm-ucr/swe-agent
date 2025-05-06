@@ -82,19 +82,13 @@ Do not include any other text or formatting, just the JSON array."""
                 messages.append(('user', correction_prompt))
             else:
                 logging.error("Maximum retries reached. Could not get valid JSON response.")
-                return json.dumps({
-                    "error": "Could not get valid JSON response",
-                    "raw_response": content
-                })
+                return json.dumps([])
 
-    return json.dumps({
-        "error": "Maximum retries reached",
-        "raw_response": content
-    })
+    return json.dumps([])
 
-def determine_file_actions(file_tree: str, task: str, max_retries: int = 3) -> Dict[str, List[str]]:
+def determine_files_to_create(file_tree: str, task: str, max_retries: int = 3) -> List[str]:
     """
-    Determines which files need to be modified and which new files need to be created.
+    Determines which new files need to be created for the task.
     
     Args:
         file_tree (str): ASCII representation of the file tree
@@ -102,23 +96,21 @@ def determine_file_actions(file_tree: str, task: str, max_retries: int = 3) -> D
         max_retries (int): Maximum number of retries for JSON validation
         
     Returns:
-        Dict[str, List[str]]: Dictionary containing 'modify' and 'create' lists of file paths
+        List[str]: List of new files that need to be created
     """
-    system_prompt = """You are specialized in analyzing tasks and determining which files need to be modified and which new files need to be created.
+    system_prompt = """You are specialized in analyzing tasks and determining which new files need to be created.
 Your outputs should follow this structure:
 1. Begin with a <thinking> section.
 2. Inside the thinking section:
    a. Analyze the task requirements
    b. Consider if new files need to be created
-   c. Consider if existing files need to be modified
+   c. Determine appropriate file locations and names
 3. Include a <reflexion> section where you:
    a. Review your decisions
-   b. Verify if the file actions make sense
+   b. Verify if the file locations make sense
    c. Confirm or adjust your decisions if necessary
 4. Close the thinking section with </thinking>
-5. Provide your final answer in a JSON object with two arrays:
-   - "modify": array of existing files that need modification
-   - "create": array of new files that need to be created
+5. Provide your final answer in a JSON array format containing only the new file paths.
 
 Example output format:
 <thinking>
@@ -129,18 +121,15 @@ Example output format:
 <reflexion>
 - Need to create new file for button component
 - Should follow project structure conventions
-- No existing files need modification
+- Component should be in components directory
 </reflexion>
 </thinking>
-{
-    "modify": [],
-    "create": ["components/Button.tsx"]
-}
+["components/Button.tsx"]
 """
 
-    correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON object format with 'modify' and 'create' arrays.
-For example: {"modify": ["file1.tsx"], "create": ["file2.tsx"]}
-Do not include any other text or formatting, just the JSON object."""
+    correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
+For example: ["file1.tsx", "file2.tsx"]
+Do not include any other text or formatting, just the JSON array."""
 
     messages = [
         ('system', system_prompt),
@@ -162,10 +151,10 @@ Do not include any other text or formatting, just the JSON object."""
 
         try:
             result = json.loads(json_part)
-            if not isinstance(result, dict) or 'modify' not in result or 'create' not in result:
+            if not isinstance(result, list):
                 raise json.JSONDecodeError("Invalid structure", json_part, 0)
             return result
-        except (json.JSONDecodeError, KeyError, TypeError):
+        except (json.JSONDecodeError, TypeError):
             retry_count += 1
             if retry_count < max_retries:
                 logging.warning(f"Attempt {retry_count}: Invalid JSON response. Retrying...")
@@ -173,19 +162,9 @@ Do not include any other text or formatting, just the JSON object."""
                 messages.append(('user', correction_prompt))
             else:
                 logging.error("Maximum retries reached. Could not get valid JSON response.")
-                return {
-                    "error": "Could not get valid JSON response",
-                    "raw_response": content,
-                    "modify": [],
-                    "create": []
-                }
+                return []
 
-    return {
-        "error": "Maximum retries reached",
-        "raw_response": content,
-        "modify": [],
-        "create": []
-    }
+    return []
 
 def analyze_task(file_tree: str, task: str) -> Dict[str, List[str]]:
     """
@@ -198,24 +177,28 @@ def analyze_task(file_tree: str, task: str) -> Dict[str, List[str]]:
     Returns:
         Dict[str, List[str]]: Dictionary containing all file actions needed
     """
-    # First, determine which files need to be modified or created
-    file_actions = determine_file_actions(file_tree, task)
+    # Get files to modify
+    modify_result = json.loads(analyze_file_tree(file_tree, task))
+    if not isinstance(modify_result, list):
+        modify_result = []
     
-    # If there was an error in determining file actions, return early
-    if "error" in file_actions:
-        return file_actions
+    # Get files to create
+    create_result = determine_files_to_create(file_tree, task)
     
-    # For files that need modification, verify they exist in the file tree
+    # Verify that files to modify exist in the file tree
     existing_files = set(file_tree.split('\n'))
-    file_actions["modify"] = [f for f in file_actions["modify"] if f in existing_files]
+    modify_result = [f for f in modify_result if f in existing_files]
     
     # Log the results
-    if file_actions["modify"]:
-        logging.info(f"Files to modify: {file_actions['modify']}")
-    if file_actions["create"]:
-        logging.info(f"Files to create: {file_actions['create']}")
+    if modify_result:
+        logging.info(f"Files to modify: {modify_result}")
+    if create_result:
+        logging.info(f"Files to create: {create_result}")
     
-    return file_actions
+    return {
+        "modify": modify_result,
+        "create": create_result
+    }
 
 def main():
     parser = argparse.ArgumentParser(description='File Tree Analyzer')
@@ -232,7 +215,7 @@ page.tsx
 notrelevant.tsx"""
     
     # Example 1: Simple modification
-    task1 = "add a \"hello world\" to the main page"
+    task1 = "add a \"hello world\" to the main page.tsx"
     print("\nTask 1 - Simple Modification:")
     result1 = analyze_task(file_tree, task1)
     print(json.dumps(result1, indent=2))
