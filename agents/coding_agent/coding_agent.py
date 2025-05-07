@@ -2,13 +2,20 @@ import ollama
 from agents.node import Node
 
 class CodingAgent(Node):
+    # override any neccessary attributes or functions from Node
+    
     def __init__(self, model_name, backend, sys_msg):
         super().__init__(model_name, backend, sys_msg)
+
+        # intialize attributes for intermediate steps such as models
+
+    # add additionally helper functions here
 
     def instruct(self, instruction):
         """
         Instructs the agent to perform a task.
         """
+        # use this as the function to call, modify it if neccessary 
         response = super().instruct(instruction)
 
         return response
