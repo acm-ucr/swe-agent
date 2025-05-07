@@ -3,7 +3,7 @@ import json
 import time
 
 def main():
-    topics = ["Topic"]
+    topics = ["Device1", "Device2", "Device3"]
     with open("ip.json") as f:
         config = json.load(f)
     
@@ -19,7 +19,8 @@ def main():
         duration = 10
         while time.time() - start_time < duration:
             for i , topic in enumerate(topics):
-                socket.send_string(f"{topic} [`i am the rizzler`]")
+                model = config["devices"]["sender"]["model"]
+                socket.send_string(f"{topic} [`{model}`]")
                 time.sleep(2)
     except zmq.Again:
         print("Handshake timed out. Exiting.")
