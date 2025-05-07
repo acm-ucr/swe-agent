@@ -229,7 +229,7 @@ if __name__ == "__main__":
     load_dotenv() 
 
     # Example usage
-    agent = CodingAgent("cogito:3b", "ollama", "You are a helpful assistant.")
+    agent = CodingAgent("cogito:3b", "ollama", "You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.'")
     
     file_tree = """app/
 page.tsx
