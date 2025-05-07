@@ -17,7 +17,7 @@ def run_agent():
     print(Fore.LIGHTBLUE_EX + banner + Style.RESET_ALL)
 
     # intialize variables 
-    path = "/Users/jerryli/Desktop/python/SWE-Agent/instructions/interaction_only/test1.json"
+    path = "/Users/jerryli/Desktop/python/SWE-Agent/instructions/interaction_only/test1.json" # change later
     instructions = read_initial_instructions(path)
     log_path = setup_logs(type='tests')
 
