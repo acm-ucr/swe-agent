@@ -19,8 +19,9 @@ def main():
         duration = 10
         while time.time() - start_time < duration:
             for i , topic in enumerate(topics):
-                model = config["devices"]["sender"]["model"]
-                socket.send_string(f"{topic} [`{model}`]")
+                json_str = json.dumps(config)
+                print(json_str)
+                socket.send_string(f"{topic} {json_str}")
                 time.sleep(2)
     except zmq.Again:
         print("Handshake timed out. Exiting.")
