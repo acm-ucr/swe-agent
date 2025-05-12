@@ -14,6 +14,7 @@ class CodingAgent(Node):
 
         # intialize attributes for intermediate steps such as models
 
+
     # add additionally helper functions here
 
     def analyze_file_tree(self, file_tree: str, task: str, max_retries: int = 3) -> str:
@@ -110,34 +111,7 @@ Do not include any other text or formatting, just the JSON array."""
         Returns:
             List[str]: List of new files that need to be created
         """
-        system_prompt = """You are specialized in analyzing tasks and determining which new files need to be created.
-Your outputs should follow this structure:
-1. Begin with a <thinking> section.
-2. Inside the thinking section:
-   a. Analyze the task requirements
-   b. Consider if new files need to be created
-   c. Determine appropriate file locations and names
-3. Include a <reflexion> section where you:
-   a. Review your decisions
-   b. Verify if the file locations make sense
-   c. Confirm or adjust your decisions if necessary
-4. Close the thinking section with </thinking>
-5. Provide your final answer in a JSON array format containing only the new file paths.
-
-Example output format:
-<thinking>
-1. Task requires a new button component...
-2. No existing button component found...
-3. Should create new file in components directory...
-
-<reflexion>
-- Need to create new file for button component
-- Should follow project structure conventions
-- Component should be in components directory
-</reflexion>
-</thinking>
-["components/Button.tsx"]
-"""
+        
 
         correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
 For example: ["file1.tsx", "file2.tsx"]
@@ -228,13 +202,52 @@ if __name__ == "__main__":
 
     load_dotenv() 
 
+    # Setup prompts 
+    system_prompt = """
+                        You are specialized in analyzing tasks and determining which new files need to be created.
+                        Your outputs should follow this structure:
+                        1. Begin with a <thinking> section.
+                        2. Inside the thinking section:
+                        a. Analyze the task requirements
+                        b. Consider if new files need to be created
+                        c. Determine appropriate file locations and names
+                        3. Include a <reflexion> section where you:
+                        a. Review your decisions
+                        b. Verify if the file locations make sense
+                        c. Confirm or adjust your decisions if necessary
+                        4. Close the thinking section with </thinking>
+                        5. Provide your final answer in a JSON array format containing only the new file paths.
+
+                        Example output format:
+                        <thinking>
+                        1. Task requires a new button component...
+                        2. No existing button component found...
+                        3. Should create new file in components directory...
+
+                        <reflexion>
+                        - Need to create new file for button component
+                        - Should follow project structure conventions
+                        - Component should be in components directory
+                        </reflexion>
+                        </thinking>
+                        ["components/Button.tsx"]
+                    """
+
+    correction_prompt = """
+                            Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
+                            For example: ["file1.tsx", "file2.tsx"]
+                            Do not include any other text or formatting, just the JSON array.
+                        """ 
+
     # Example usage
     agent = CodingAgent("cogito:3b", "ollama", "You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.'")
     
-    file_tree = """app/
-page.tsx
-notrelevant.tsx"""
-    
+    file_tree = """
+                    app/
+                    page.tsx
+                    notrelevant.tsx
+                """
+                        
     # Example 1: Simple modification
     task1 = "add a \"hello world\" to the main page.tsx"
     print("\nTask 1 - Simple Modification:")
