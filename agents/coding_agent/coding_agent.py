@@ -7,15 +7,11 @@ from agents.node import Node
 from typing import Dict, List
 
 class CodingAgent(Node):
-    # override any neccessary attributes or functions from Node
-    
-    def __init__(self, model_name, backend, sys_msg):
+    def __init__(self, model_name, backend, sys_msg, correction_prompt):
         super().__init__(model_name, backend, sys_msg)
 
         # intialize attributes for intermediate steps such as models
-
-
-    # add additionally helper functions here
+        self.correction_prompt = correction_prompt
 
     def analyze_file_tree(self, file_tree: str, task: str, max_retries: int = 3) -> str:
         """
@@ -29,48 +25,16 @@ class CodingAgent(Node):
         Returns:
             str: JSON string containing relevant files that need modification
         """
-        system_prompt = """You are specialized in analyzing file trees and determining which files need to be modified for a given task.
-Your outputs should follow this structure:
-1. Begin with a <thinking> section.
-2. Inside the thinking section:
-a. Analyze the file tree structure
-b. Consider the task requirements
-c. Identify relevant files based on naming conventions and task context
-3. Include a <reflexion> section where you:
-a. Review your file selection
-b. Verify if the selected files make sense for the task
-c. Confirm or adjust your selection if necessary
-4. Close the thinking section with </thinking>
-5. Provide your final answer in a JSON array format containing only the relevant file paths.
-
-Example output format:
-<thinking>
-1. Analyzing file tree structure...
-2. Task requires modification of main page...
-3. Based on naming conventions, page.tsx is likely the main page...
-
-<reflexion>
-- page.tsx is the standard name for main pages in Next.js
-- The task specifically mentions "main page"
-- No other files seem relevant to this task
-</reflexion>
-</thinking>
-["app/page.tsx"]
-    """
-
-        correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
-For example: ["file1.tsx", "file2.tsx"]
-Do not include any other text or formatting, just the JSON array."""
 
         messages = [
-            ('system', system_prompt),
+            ('system', self.sys_msg),
             ('user', f"File Tree:\n{file_tree}\n\nTask: {task}")
         ]
 
         retry_count = 0
         while retry_count < max_retries:
             response = ollama.chat(
-                model='cogito:3b',
+                model=self.model_name,
                 messages=[{'role': role, 'content': content} for role, content in messages]
             )
 
@@ -92,7 +56,7 @@ Do not include any other text or formatting, just the JSON array."""
                 if retry_count < max_retries:
                     logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
                     messages.append(('assistant', content))
-                    messages.append(('user', correction_prompt))
+                    messages.append(('user', self.correction_prompt))
                 else:
                     logging.error("Maximum retries reached. Could not get valid JSON response.")
                     return json.dumps([])
@@ -111,14 +75,9 @@ Do not include any other text or formatting, just the JSON array."""
         Returns:
             List[str]: List of new files that need to be created
         """
-        
-
-        correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
-For example: ["file1.tsx", "file2.tsx"]
-Do not include any other text or formatting, just the JSON array."""
 
         messages = [
-            ('system', system_prompt),
+            ('system', self.sys_msg),
             ('user', f"File Tree:\n{file_tree}\n\nTask: {task}")
         ]
 
@@ -145,7 +104,7 @@ Do not include any other text or formatting, just the JSON array."""
                 if retry_count < max_retries:
                     logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
                     messages.append(('assistant', content))
-                    messages.append(('user', correction_prompt))
+                    messages.append(('user', self.correction_prompt))
                 else:
                     logging.error("Maximum retries reached. Could not get valid JSON response.")
                     return []
@@ -204,6 +163,8 @@ if __name__ == "__main__":
 
     # Setup prompts 
     system_prompt = """
+                        You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.
+
                         You are specialized in analyzing tasks and determining which new files need to be created.
                         Your outputs should follow this structure:
                         1. Begin with a <thinking> section.
@@ -240,7 +201,9 @@ if __name__ == "__main__":
                         """ 
 
     # Example usage
-    agent = CodingAgent("cogito:3b", "ollama", "You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.'")
+    model_name = "cogito:3b"
+    backend = "ollama"
+    agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
     
     file_tree = """
                     app/
