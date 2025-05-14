@@ -13,9 +13,9 @@ if not GITHUB_TOKEN:
     raise ValueError("Please set your GITHUB_TOKEN environment variable.")
 
 HEADERS = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
-        }
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json"
+}
 
 def stage_and_commit_files(repo_path: str, file_paths: list, commit_message: str) -> bool:
     """
@@ -123,10 +123,10 @@ def merge_github_branch(owner: str, repo: str, head: str, base: str = "main") ->
     """
     url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/merges"
     payload = {
-            "base": base,
-            "head": head,
-            "commit_message": f"Merge {head} into {base}"
-            }
+        "base": base,
+        "head": head,
+        "commit_message": f"Merge {head} into {base}"
+    }
     response = requests.post(url, headers=HEADERS, json=payload)
     if response.status_code != 201:
         print("Error merging branches:", response.content)
@@ -206,17 +206,17 @@ def create_pull_request(owner, repo, issue_number, branch_name, base="main"):
     issue_body = issue_details.get("body", "")
     pr_title = f"[#{issue_number}] {issue_title}"
     pr_body = f"Closes #{issue_number}\n\n{issue_body}"
-
+    
     # Prepare the payload to create the pull request.
     pr_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/pulls"
     payload = {
-            "title": pr_title,
-            "body": pr_body,
-            "head": branch_name,  # This should be the branch you're on, i.e., "test"
-            "base": base         # The branch to merge into, i.e., "main"
-            }
+        "title": pr_title,
+        "body": pr_body,
+        "head": branch_name,  # This should be the branch you're on, i.e., "test"
+        "base": base         # The branch to merge into, i.e., "main"
+    }
     print("Payload for PR creation:", payload)
-
+    
     # Create the pull request.
     pr_response = requests.post(pr_url, headers=headers, json=payload)
     if pr_response.status_code != 201:
@@ -239,7 +239,7 @@ def total_prs(owner, repo, head, base):
     params = {"head": f"{owner}:{head}", "base": base, "state": "all"}
     response = requests.get(url, headers=HEADERS, params=params)
     response.raise_for_status()
-    return len(response.json())
+    return len(response.json()) 
 
 
 def create_new_branch(owner, repo, new_branch, base = "main"):
@@ -255,17 +255,19 @@ def create_new_branch(owner, repo, new_branch, base = "main"):
     if response.status_code != 200:
         print("Error retrieving sha", response.content)
         return None
-    sha = response.json()["object"]["sha"]
+    sha = response.json()["object"]["sha"]  
     post_url = f"{GITHUB_API_URL}/repos/{owner}/{repo}/git/refs"
     payload = {
-            "ref": f"refs/heads/{new_branch}",
-            "sha": sha
-            }
+        "ref": f"refs/heads/{new_branch}",
+        "sha": sha
+    }
+
     post_response = requests.post(post_url, headers = HEADERS, json= payload)
     if post_response.status_code == 201:
         print("Branch created.")
 
-    
+   
+
 def fetch_commit_history(owner: str, repo: str):
     """
     Fetch commit history of the repo
@@ -449,7 +451,7 @@ def main():
 
     # Since you are on your "test" branch, set branch_name accordingly.
     branch_name = "test"  # This is your current branch
-    head = branch_name
+    head = branch_name  
     base = "main"  # Assuming you want to merge into the main branch
 
     # Print the number of PRs from "test" to "main"
