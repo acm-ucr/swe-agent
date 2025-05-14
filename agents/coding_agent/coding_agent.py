@@ -7,7 +7,7 @@ from agents.node import Node
 from typing import Dict, List
 
 class CodingAgent(Node):
-    def __init__(self, model_name, backend, sys_msg, correction_prompt):
+    def __init__(self, model_name, backend, sys_msg, correction_prompt="Fix the JSON response to be valid."):
         super().__init__(model_name, backend, sys_msg)
 
         # intialize attributes for intermediate steps such as models

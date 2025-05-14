@@ -1,0 +1,5 @@
+{
+    "sys_prompt": "You are a helpful assistant who breaks down a complex task into multple steps. Be quick and concise.",
+    "user_prompt": "Build me a shopping website with a homepage of items to browse. Also have a login feature so registered users can sell.",
+    "correction_prompt": "Your previous response was not valid JSON. Please provide your answer in a valid JSON array format. For example: ['file1.tsx', 'file2.tsx']. Do not include any other text or formatting, just the JSON array."
+}

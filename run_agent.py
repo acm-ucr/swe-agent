@@ -4,33 +4,30 @@ from agents.reasoning_agent.reasoning_agent import InteractionAgent
 from agents.review_agent.review_agent import ReviewAgent
 from agents.coding_agent.coding_agent import CodingAgent
 from shared.setup_tools import read_initial_instructions, setup_logs
-from shared.log_tools import log_interaction
+from shared.log_tools import log_interaction, print_action
 
 def run_agent():
     # Render ASCII art banner
     banner = pyfiglet.figlet_format("SWE Agent", font="slant")
-    interaction_banner = pyfiglet.figlet_format("Interacting...")
-    orchestrator_banner = pyfiglet.figlet_format("Orchestrating...")
-    coding_banner = pyfiglet.figlet_format("Coding...")
 
     # Print in light blue
     print(Fore.LIGHTBLUE_EX + banner + Style.RESET_ALL)
 
     # intialize variables 
-    path = "/Users/jerryli/Desktop/python/SWE-Agent/instructions/interaction_only/test1.json" # change later
+    path = "/Users/jerryli/Desktop/python/SWE-Agent/instructions/test1.json" # change later
     instructions = read_initial_instructions(path)
     log_path = setup_logs(type='tests')
 
     # intialize agents
     interaction_agent = InteractionAgent("qwen2.5:7b", "ollama", instructions['sys_prompt'])
     orchestrator_agent = ReviewAgent()
-    code_agent = CodingAgent("qwen2.5:7b", "ollama", instructions['sys_prompt'])
+    code_agent = CodingAgent("qwen2.5:7b", "ollama", instructions['sys_prompt'], instructions['correction_prompt'])
 
     # interaction 
     interaction_complete = False
     user_prompt = instructions['user_prompt']
     while not interaction_complete:
-        print(Fore.LIGHTYELLOW_EX + interaction_banner + Style.RESET_ALL)
+        print_action("Interacting with the user...", color="yellow")
         output = interaction_agent.instruct(user_prompt)
         print(output)
         # interaction_complete = output['status']
