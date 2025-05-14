@@ -419,8 +419,6 @@ def repo_to_textTree(repo_path):
                 continue
 
             full_file_path = os.path.join(dirpath,filename)
-            if os.path.getsize(full_file_path) >= 1000000:
-                    continue
             try:
                 with open(full_file_path,"r", encoding="utf-8") as f:
                     content = f.read()

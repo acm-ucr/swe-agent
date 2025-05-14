@@ -1,6 +1,6 @@
 from unittest.mock import patch
 import os
-from github_tools import merge_github_branch, close_github_pull_request, fetch_files_from_codebase, edit_files_from_codebase, fetch_files_from_codebase, edit_files_from_codebase
+from shared.github_tools import merge_github_branch, close_github_pull_request, fetch_files_from_codebase, edit_files_from_codebase, fetch_files_from_codebase, edit_files_from_codebase
 import tempfile
 
 def test_merge_github_branch():
