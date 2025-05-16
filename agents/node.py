@@ -37,8 +37,8 @@ class Node():
         """
         if self.backend == "ollama":
             response = ollama.chat(model=self.model_name, messages=[
-                        {'role': 'user', 'content': instruction}
-                    ])
+                        {'role': 'user', 'content': instruction}, 
+                    ], tools = self.tools)
             response = response['message']['content']
         elif self.backend == "huggingface":
             response = self.model.run(instruction)

@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     load_dotenv() 
 
-    node = CodingAgent("qwen2.5:7b", "ollama", "You are a helpful assistant.")
+    node = CodingAgent("gemma3:12b", "ollama", "You are a helpful assistant.")
     print(node.model_name)
     print(node.backend)
 
