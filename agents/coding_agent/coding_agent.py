@@ -2,11 +2,15 @@ import sys
 import ollama 
 import json
 import logging
+import re
 sys.path.append("C:\\Users\\inegi_pqetia\\Documents\\ACM DAS\\swe-agent")
 from agents.node import Node
 from typing import Dict, List
+import subprocess
+import os
 
-# from shared import clone_repo, ensure_repo_cloned, repo_to_textTree
+
+# from shared import clone_repo, ensure_repo_cloned
 
 
 class CodingAgent(Node):
@@ -147,21 +151,92 @@ class CodingAgent(Node):
             "modify": modify_result,
             "create": create_result
         }
+    
+    def ensure_repo_cloned(self, repo_url: str, destination: str = ".") -> str:
+        """
+        Ensures that the GitHub repository is cloned locally.
+        If not already cloned, it clones it into the destination directory.
+
+        Args:
+            repo_url (str): The full HTTPS URL of the GitHub repository.
+            destination (str): Directory to clone into. Defaults to current directory.
+
+        Returns:
+            str: The local path to the cloned repository.
+        """
+        repo_name = os.path.basename(repo_url).replace(".git", "")
+        repo_path = os.path.join(destination, repo_name)
+
+        if not os.path.exists(repo_path):
+            print(f"{repo_name} not found at {repo_path}, cloning...")
+            try:
+                subprocess.run(["git", "clone", repo_url, repo_path], check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Unable to clone repo: {e}")
+                raise
+        else:
+            print(f"{repo_name} already cloned at {repo_path}")
+
+        return repo_path
+
+    def parse_github_url(self, url: str):
+    # Example URL: https://github.com/owner/repo.git
+        pattern = r"github\.com/([^/]+)/([^/]+)(?:\.git)?$"
+        match = re.search(pattern, url)
+        if match:
+            owner = match.group(1)
+            repo = match.group(2)
+            return owner, repo
+        else:
+            raise ValueError("Invalid GitHub repo URL")
+
+
+    def handle_clone_task(self, repo_url: str, target_dir: str):
+        owner, repo = self.parse_github_url(repo_url)
+        self.ensure_repo_cloned(owner,repo, target_dir)
+
+
 
         
     def instruct(self, instruction):
-        """
-        youre an assitant. just talk with the user
-        """
-        # use this as the function to call, modify it if neccessary 
-        response = super().instruct(instruction)
-    
-        return response
-    
+        if "clone" in instruction and "https://github.com" in instruction:
+            match = re.search(r'https://github\.com/([^/\s]+/[^/\s]+)', instruction)
+            if match:
+                repo_url = "https://github.com/" + match.group(1)
+                owner, repo = self.parse_github_url(repo_url)
+                target_dir = f"./{repo}"
+                self.handle_clone_task(repo_url, target_dir)
+                return f"Cloning repository {repo_url} into {target_dir} if not already cloned."
+            else:
+                return "Could not find a valid GitHub URL in the instruction."
+
+        return super().instruct(instruction)
+
+
+    def clone_repo(self, repo_url: str, target_dir: str):
+        # Make sure target_dir exists
+        os.makedirs(target_dir, exist_ok=True)
+
+        # Extract repo folder name from repo_url
+        repo_name = repo_url.rstrip('/').split('/')[-1].replace('.git', '')
+        repo_path = os.path.join(target_dir, repo_name)
+
+        if os.path.exists(repo_path):
+            print(f"Repository already cloned at {repo_path}")
+            return repo_path
+
+        # Run git clone command
+        try:
+            subprocess.run(["git", "clone", repo_url, repo_path], check=True)
+            print(f"Successfully cloned {repo_url} into {repo_path}")
+            return repo_path
+        except subprocess.CalledProcessError as e:
+            print(f"Error cloning repo: {e}")
+            return None
+
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
-    import os
 
     load_dotenv() 
 
@@ -204,10 +279,20 @@ if __name__ == "__main__":
                             Do not include any other text or formatting, just the JSON array.
                         """ 
 
+
+    #testing 
+    system_prompt2 = """
+                       You are an assistant that helps with software engineering tasks. Run handle_clone_task to clone the github repository into this directory.
+ """
+    
+    correction_prompt2 = """
+make sure the repo is actually cloned, and tell me the path to the repo.
+
+"""
     # Example usage
     model_name = "qwen2.5:7b"
     backend = "ollama"
-    agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
+    agent = CodingAgent(model_name, backend, system_prompt2, correction_prompt2)
     
     file_tree = """
                     app/
@@ -232,3 +317,10 @@ if __name__ == "__main__":
     # print(node.model_name)  
     # print(node.backend)
 
+
+    #Example 3: Test if the thing is cloned
+    task3 = "Clone jeli04/acm-hydra into this directory using ensure_repo_cloned."
+    print("\nTask 3 - Cloning Repo:")
+    response = agent.instruct(task3)
+    print("Response:\n", response)
+ 
