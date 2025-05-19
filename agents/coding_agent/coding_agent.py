@@ -161,30 +161,97 @@ class CodingAgent(Node):
             "modify": modify_result,
             "create": create_result
         }
+    
+    def handle_clone_task(self, owner: str, repo: str, target_dir: str, max_retries: int = 1):
+        """
+        Tries to clone the repo until it's confirmed to be cloned or max_retries is hit.
+        """
+        attempt = 0
+        while attempt < max_retries:
+            attempt += 1
+            logging.info(f"Attempt {attempt} to clone {owner}")
+            try:
+                # Attempt to clone or ensure it's cloned
+                success = ensure_repo_cloned(owner, repo, target_dir)
 
+                # Check if the repo was actually cloned (i.e., directory exists and has a .git)
+                if success:
+                    logging.info(f"Successfully cloned repository to {target_dir}")
+                    return True
+
+            except Exception as e:
+                logging.warning(f"Attempt {attempt} failed: {e}")
+
+            logging.info("Retrying...")
+
+        logging.error(f"Failed to clone repository {owner}/{repo} after {max_retries} attempts.")
+        return False
+
+    def parse_github_url(self, url: str):
+        """
+        Parses a GitHub repository URL and returns the owner and repository name.
         
-    def instruct(self, instruction):
-        tool_result = use_tools(tools, instruction)
-        if tool_result:
-            return tool_result
+        Args:
+            url (str): The GitHub repository URL (e.g., "https://github.com/owner/repo")
+        
+        Returns:
+            Tuple[str, str]: A tuple containing the owner and repository name
+        
+        Raises:
+            ValueError: If the URL is not a valid GitHub repository URL
+        """
+        import re
+        
+        pattern = r'https?://github\.com/([^/]+)/([^/]+)(?:\.git)?/?$'
+        match = re.match(pattern, url)
+        
+        if match:
+            owner = match.group(1)
+            repo = match.group(2)
+            return owner, repo
+        else:
+            raise ValueError(f"Invalid GitHub URL: {url}")
 
+    def instruct(self, instruction):
+        # 1. Get response from model
+        response = ollama.chat(
+            model=self.model_name,
+            messages=[
+                {'role': 'system', 'content': self.sys_msg},
+                {'role': 'user', 'content': instruction}
+            ]
+        )
+
+        # 2. Handle tool calls if present
+        if 'tool_calls' in response['message']:
+            tools_calls = response['message']['tool_calls']
+            logging.debug("Tool calls received: %s", tools_calls)
+            result = use_tools(tools_calls, tools)  # use your tool list
+            if result:
+                return result
+
+       # 3. Fallback: parse instruction manually
         if "clone" in instruction and "https://github.com" in instruction:
             match = re.search(r'https://github\.com/([^/\s]+/[^/\s]+)', instruction)
             if match:
                 repo_url = "https://github.com/" + match.group(1)
                 owner, repo = self.parse_github_url(repo_url)
                 target_dir = f"./{repo}"
-                self.handle_clone_task(repo_url, target_dir)
-                return f"Cloning repository {repo_url} into {target_dir} if not already cloned."
-            else:
-                return "Could not find a valid GitHub URL in the instruction."
 
-        return super().instruct(instruction)
+                success = self.handle_clone_task(owner, repo, target_dir)
+                if success:
+                    return f"Successfully cloned repository {repo_url} into {target_dir}."
+                else:
+                    return f"Failed to clone repository {repo_url} after multiple attempts."
+
+            return "Could not find a valid GitHub URL in the instruction."
+
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv() 
+    
 
     # Setup prompts 
     system_prompt = """
@@ -265,7 +332,7 @@ make sure the repo is actually cloned, and tell me the path to the repo.
 
 
     #Example 3: Test if the thing is cloned
-    task3 = "Clone jeli04/acm-hydra into this directory using ensure_repo_cloned."
+    task3 = "Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned."
     print("\nTask 3 - Cloning Repo:")
     response = agent.instruct(task3)
     print("Response:\n", response)

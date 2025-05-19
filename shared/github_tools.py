@@ -405,8 +405,9 @@ def ensure_repo_cloned(owner: str, repo: str, destination: str = ".") -> str:
             raise  # re-raise so your agent knows it failed
     else:
         print(f"{repo} already cloned at {repo_path}")
+        return False
 
-    return repo_path
+    return True
 
 
 def repo_to_textTree(repo_path):
@@ -467,7 +468,4 @@ def main():
 
 if __name__ == "__main__":
     repo_path = ensure_repo_cloned("jeli04","acm-hydra")
-    tree = repo_to_textTree(repo_path)
-    with open("my_file.txt", "a", encoding="utf-8") as f:
-        f.write(tree)
 
