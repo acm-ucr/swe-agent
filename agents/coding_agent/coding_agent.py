@@ -212,7 +212,7 @@ class CodingAgent(Node):
         else:
             raise ValueError(f"Invalid GitHub URL: {url}")
 
-    def instruct(self, instruction):
+    def instruct(self, instruction, task1):
         # 1. Get response from model
         response = ollama.chat(
             model=self.model_name,
@@ -240,11 +240,21 @@ class CodingAgent(Node):
 
                 success = self.handle_clone_task(owner, repo, target_dir)
                 if success:
-                    return f"Successfully cloned repository {repo_url} into {target_dir}."
-                else:
-                    return f"Failed to clone repository {repo_url} after multiple attempts."
+                    print(f"Successfully cloned repository {repo_url} into {target_dir}.")
+                
+        #4. Call Henry's function
+        file_tree = """
+                    app/
+                    page.tsx
+                    notrelevant.tsx
+                """
+        
+        result1 = agent.analyze_task(file_tree, task1)
+        print("\nFinal Result 1:")
+        print(json.dumps(result1, indent=2))
 
-            return "Could not find a valid GitHub URL in the instruction."
+
+        return result1
 
 
 if __name__ == "__main__":
@@ -259,6 +269,7 @@ if __name__ == "__main__":
 
                         You are specialized in analyzing tasks and determining which new files need to be created.
                         Your outputs should follow this structure:
+                        0. Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned. 
                         1. Begin with a <thinking> section.
                         2. Inside the thinking section:
                         a. Analyze the task requirements
@@ -305,7 +316,7 @@ make sure the repo is actually cloned, and tell me the path to the repo.
     # Example usage
     model_name = "qwen2.5:7b"
     backend = "ollama"
-    agent = CodingAgent(model_name, backend, system_prompt2, correction_prompt2)
+    agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
     
     file_tree = """
                     app/
@@ -314,8 +325,8 @@ make sure the repo is actually cloned, and tell me the path to the repo.
                 """
                         
     # Example 1: Simple modification
-    # task1 = "add a \"hello world\" to the main page.tsx"
-    # print("\nTask 1 - Simple Modification:")
+    task1 = "add a \"hello world\" to the main page.tsx"
+    print("\nTask 1 - Simple Modification:")
     # result1 = agent.analyze_task(file_tree, task1)
     # print("\nFinal Result 1:")
     # print(json.dumps(result1, indent=2))
@@ -334,6 +345,6 @@ make sure the repo is actually cloned, and tell me the path to the repo.
     #Example 3: Test if the thing is cloned
     task3 = "Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned."
     print("\nTask 3 - Cloning Repo:")
-    response = agent.instruct(task3)
+    response = agent.instruct(task3,task1)
     print("Response:\n", response)
  
