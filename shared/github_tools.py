@@ -1,6 +1,8 @@
 import os
 import requests
 from git import Repo, exc
+import subprocess
+
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
@@ -354,8 +356,75 @@ def edit_files_from_codebase(file_updates: dict) -> dict:
             results[file_path] = f"error: {str(e)}"
     return results
 
-    
-def main():
+
+
+def clone_repo(owner: str, repo: str, destination: str = ".") -> str:
+    """
+    Clones a GitHub repository using Git.
+
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    destination: The directory where the repository will be cloned.
+                 Defaults to the current working directory.
+
+    Returns the full path to the cloned repository.
+    Raises an error if cloning fails.
+    """
+    repo_url = f"https://github.com/{owner}/{repo}.git"
+    repo_path = os.path.join(destination, repo)
+
+    try:
+        subprocess.run(["git", "clone", repo_url, repo_path], check=True)
+        print(f"Cloned {repo} into {repo_path}")
+        return repo_path
+    except subprocess.CalledProcessError as e:
+        print("Clone failed:", e)
+        raise
+
+
+
+def ensure_repo_cloned(owner: str, repo: str, destination: str = ".") -> str:
+    """
+    Ensures that the GitHub repository is cloned locally.
+    If not already cloned, clones it.
+
+    owner: The owner of the GitHub repository.
+    repo: The name of the GitHub repository.
+    destination: Directory to clone into. Defaults to current directory.
+
+    Returns the local path to the repository.
+    """
+    repo_path = os.path.join(destination, repo)
+
+    if not os.path.exists(repo_path):
+        print(f"{repo} not found at {repo_path}, cloning...")
+        try:
+            clone_repo(owner, repo, destination)
+        except Exception as e:
+            print(f"Unable to clone repo: {e}")
+            raise  # re-raise so your agent knows it failed
+    else:
+        print(f"{repo} already cloned at {repo_path}")
+        return False
+
+    return True
+
+
+def repo_to_fileTree(start_path, indent =""):
+    tree = ""
+    entries = sorted(os.listdir(start_path))
+    for i, entry in enumerate(entries):
+        path = os.path.join(start_path, entry)
+        connector = "└── " if i == len(entries) - 1 else "├── "
+        tree += indent + connector + entry + "\n"
+        if os.path.isdir(path):
+            extension = "    " if i == len(entries) - 1 else "│   "
+            tree += repo_to_fileTree(path, indent + extension)
+    return tree
+
+
+
+def main(): 
     owner = "Jeli04"
     repo = "SWE-Agent-test"
     issue_number = 4
@@ -387,4 +456,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ensure_repo_cloned("jeli04","acm-hydra")
+    print(repo_to_fileTree(r"./acm-hydra"))
+
+
