@@ -410,8 +410,8 @@ def ensure_repo_cloned(owner: str, repo: str, destination: str = ".") -> str:
     return True
 
 
-def repo_to_textTree(repo_path):
-    fileTreeText = ""
+def repo_to_fileTree(repo_path):
+    fileTree = ""
     allowed_files = {".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".json"}
 
     for dirpath,dirnames,filenames in os.walk(repo_path):
@@ -426,11 +426,11 @@ def repo_to_textTree(repo_path):
                 with open(full_file_path,"r", encoding="utf-8") as f:
                     content = f.read()
                 relative_path = os.path.relpath(full_file_path,repo_path) 
-                fileTreeText += f"\n/{relative_path}\n---\n{content}\n"
+                fileTree += f"\n/{relative_path}\n---\n{content}\n"
             except Exception as e:
                 print(f"Skipping file {full_file_path}: {e}")
                 continue
-    return fileTreeText
+    return fileTree
 
 
 

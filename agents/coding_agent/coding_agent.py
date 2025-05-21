@@ -10,15 +10,14 @@ import subprocess
 import os
 
 from shared.ollama_tools.ollama_tools import generate_function_description, use_tools
-from shared.github_tools import ensure_repo_cloned,clone_repo
+from shared.github_tools import ensure_repo_cloned,clone_repo, repo_to_fileTree 
 
 
-
-# from shared import clone_repo, ensure_repo_cloned
 
 tools = [
     generate_function_description(ensure_repo_cloned),
     generate_function_description(clone_repo),
+    generate_function_description(repo_to_fileTree),
     ...
 ]
 
@@ -184,7 +183,6 @@ class CodingAgent(Node):
 
             logging.info("Retrying...")
 
-        logging.error(f"Failed to clone repository {owner}/{repo} after {max_retries} attempts.")
         return False
 
     def parse_github_url(self, url: str):
@@ -243,12 +241,9 @@ class CodingAgent(Node):
                     print(f"Successfully cloned repository {repo_url} into {target_dir}.")
                 
         #4. Call Henry's function
-        file_tree = """
-                    app/
-                    page.tsx
-                    notrelevant.tsx
-                """
-        
+        file_tree = repo_to_fileTree(target_dir)
+
+        print("\nTask 1 - Simple Modification:")
         result1 = agent.analyze_task(file_tree, task1)
         print("\nFinal Result 1:")
         print(json.dumps(result1, indent=2))
@@ -261,41 +256,44 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv() 
-    
 
     # Setup prompts 
-    system_prompt = """
-                        You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.
+    system_prompt = system_prompt = """
+            You're a pro at Next.js and determining which files to modify or create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.
 
-                        You are specialized in analyzing tasks and determining which new files need to be created.
-                        Your outputs should follow this structure:
-                        0. Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned. 
-                        1. Begin with a <thinking> section.
-                        2. Inside the thinking section:
-                        a. Analyze the task requirements
-                        b. Consider if new files need to be created
-                        c. Determine appropriate file locations and names
-                        3. Include a <reflexion> section where you:
-                        a. Review your decisions
-                        b. Verify if the file locations make sense
-                        c. Confirm or adjust your decisions if necessary
-                        4. Close the thinking section with </thinking>
-                        5. Provide your final answer in a JSON array format containing only the new file paths.
+            You are specialized in analyzing tasks and determining which new files need to be created.
+            Your outputs should follow this structure:
 
-                        Example output format:
-                        <thinking>
-                        1. Task requires a new button component...
-                        2. No existing button component found...
-                        3. Should create new file in components directory...
+            1. Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned.
+            2. Create an ASCII representation of the repo using repo_to_fileTree.
+            3. Begin with a <thinking> section.
+            4. Inside the thinking section:
+            a. Analyze the task requirements  
+            b. Consider if new files need to be created  
+            c. Determine appropriate file locations and names  
+            5. Include a <reflexion> section where you:
+            a. Review your decisions  
+            b. Verify if the file locations make sense  
+            c. Confirm or adjust your decisions if necessary  
+            6. Close the thinking section with </thinking>
+            7. Provide your final answer in a JSON array format containing only the new file paths.
 
-                        <reflexion>
-                        - Need to create new file for button component
-                        - Should follow project structure conventions
-                        - Component should be in components directory
-                        </reflexion>
-                        </thinking>
-                        ["components/Button.tsx"]
-                    """
+            Example output format:
+            <thinking>
+            1. Task requires a new button component...
+            2. No existing button component found...
+            3. Should create new file in components directory...
+
+            <reflexion>
+            - Need to create new file for button component
+            - Should follow project structure conventions
+            - Component should be in components directory
+            </reflexion>
+            </thinking>
+
+            ["components/Button.tsx"]
+        """
+
 
     correction_prompt = """
                             Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
@@ -318,15 +316,8 @@ make sure the repo is actually cloned, and tell me the path to the repo.
     backend = "ollama"
     agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
     
-    file_tree = """
-                    app/
-                    page.tsx
-                    notrelevant.tsx
-                """
-                        
     # Example 1: Simple modification
     task1 = "add a \"hello world\" to the main page.tsx"
-    print("\nTask 1 - Simple Modification:")
     # result1 = agent.analyze_task(file_tree, task1)
     # print("\nFinal Result 1:")
     # print(json.dumps(result1, indent=2))
@@ -342,9 +333,8 @@ make sure the repo is actually cloned, and tell me the path to the repo.
     # print(node.backend)
 
 
-    #Example 3: Test if the thing is cloned
-    task3 = "Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned."
-    print("\nTask 3 - Cloning Repo:")
-    response = agent.instruct(task3,task1)
+    task0 = "Clone https://github.com/jeli04/acm-hydra into this directory using ensure_repo_cloned."
+    print("\nTask 0 - Cloning Repo:")
+    response = agent.instruct(task0,task1)
     print("Response:\n", response)
  
