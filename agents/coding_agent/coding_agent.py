@@ -2,9 +2,11 @@ import sys
 import ollama 
 import json
 import logging
+import os
 sys.path.append("/Users/henry/Documents/GitHub/swe-agent")
 from agents.node import Node
 from typing import Dict, List
+from shared.file_tools import fetch_files_from_codebase, edit_files_from_codebase, create_file
 
 class CodingAgent(Node):
     def __init__(self, model_name, backend, sys_msg, correction_prompt):
@@ -145,6 +147,123 @@ class CodingAgent(Node):
             "create": create_result
         }
 
+    def read_files(self, file_paths: List[str]) -> Dict[str, str]:
+        """
+        Reads the contents of specified files.
+        
+        Args:
+            file_paths: List of file paths to read
+            
+        Returns:
+            Dict mapping file paths to their contents
+        """
+        return fetch_files_from_codebase(file_paths)
+
+    def modify_files(self, file_updates: Dict[str, str]) -> Dict[str, str]:
+        """
+        Modifies existing files with new content.
+        
+        Args:
+            file_updates: Dict mapping file paths to their new contents
+            
+        Returns:
+            Dict with results of each file modification
+        """
+        return edit_files_from_codebase(file_updates)
+
+    def create_new_files(self, files_to_create: List[str], base_path: str = "") -> None:
+        """
+        Creates new files in the codebase.
+        
+        Args:
+            files_to_create: List of file paths to create
+            base_path: Optional base path for the new files
+        """
+        for file_path in files_to_create:
+            # Extract filename and extension
+            filename = os.path.basename(file_path)
+            name, ext = os.path.splitext(filename)
+            # Create empty file
+            create_file(name, ext[1:], os.path.dirname(file_path))
+
+    def generate_file_content(self, task: str, file_path: str, existing_content: str = "") -> str:
+        """
+        Generates new content for a file based on the task and existing content.
+        
+        Args:
+            task: The task description
+            file_path: Path of the file to modify
+            existing_content: Current content of the file
+            
+        Returns:
+            str: New content for the file
+        """
+        prompt = f"""Given the following task and file content, generate the updated file content.
+Task: {task}
+File path: {file_path}
+Current content:
+{existing_content}
+
+Generate the complete updated file content that implements the task requirements.
+Maintain any existing imports and structure, just add or modify what's needed."""
+
+        response = ollama.chat(
+            model=self.model_name,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        
+        return response['message']['content']
+
+    def execute_task(self, file_tree: str, task: str, base_path: str = "") -> Dict[str, List[str]]:
+        """
+        Executes a task by analyzing, reading, and modifying files as needed.
+        
+        Args:
+            file_tree: ASCII representation of the file tree
+            task: Description of the task to be performed
+            base_path: Base path for file operations
+            
+        Returns:
+            Dict containing results of the operation
+        """
+        # Analyze which files need to be modified or created
+        analysis = self.analyze_task(file_tree, task)
+        
+        # Handle file modifications
+        if analysis["modify"]:
+            # Read existing files
+            file_contents = self.read_files(analysis["modify"])
+            logging.info(f"Read {len(file_contents)} files for modification")
+            
+            # Generate and apply modifications
+            file_updates = {}
+            for file_path in analysis["modify"]:
+                existing_content = file_contents.get(file_path, "")
+                new_content = self.generate_file_content(task, file_path, existing_content)
+                file_updates[file_path] = new_content
+            
+            # Apply the modifications
+            results = self.modify_files(file_updates)
+            logging.info(f"Modified files: {results}")
+        
+        # Handle file creation
+        if analysis["create"]:
+            # For new files, generate content without existing content
+            file_updates = {}
+            for file_path in analysis["create"]:
+                new_content = self.generate_file_content(task, file_path)
+                file_updates[file_path] = new_content
+            
+            # Create the files with generated content
+            for file_path, content in file_updates.items():
+                full_path = os.path.join(base_path, file_path)
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                with open(full_path, 'w') as f:
+                    f.write(content)
+            logging.info(f"Created {len(analysis['create'])} new files")
+        
+        return analysis
+
     def instruct(self, instruction):
         """
         Instructs the agent to perform a task.
@@ -204,24 +323,55 @@ if __name__ == "__main__":
     model_name = "cogito:3b"
     backend = "ollama"
     agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
+
     
+    # Example task: Add a function to test.py that creates a new branch
     file_tree = """
-                    app/
-                    page.tsx
-                    notrelevant.tsx
+        SWE-Agent-test/
+        ├─ config/
+        │  └─ test.yaml
+        ├─ ollama-tools/
+        │  ├─ .gitignore
+        │  ├─ example_allmodels.py
+        │  ├─ example_think_act.py
+        │  ├─ example_with_tool_support.py
+        │  ├─ LICENSE
+        │  ├─ ollama_tools.py
+        │  ├─ README.md
+        │  ├─ requirements.txt
+        │  └─ sample_functions.py
+        ├─ src/
+        │  ├─ agent.py
+        │  ├─ github.py
+        │  ├─ huggingface.py
+        │  ├─ ollama_tool.py
+        │  ├─ test.py
+        │  └─ utils.py
+        ├─ .gitignore
+        ├─ .gitmodules
+        ├─ dummy.txt
+        └─ README.md
                 """
-                        
-    # Example 1: Simple modification
-    task1 = "add a \"hello world\" to the main page.tsx"
-    print("\nTask 1 - Simple Modification:")
-    result1 = agent.analyze_task(file_tree, task1)
-    print("\nFinal Result 1:")
-    print(json.dumps(result1, indent=2))
     
-    # Example 2: Creating new component
-    task2 = "create a new button component with a primary style"
-    print("\nTask 2 - Creating New Component:")
-    result2 = agent.analyze_task(file_tree, task2)
-    print("\nFinal Result 2:")
-    print(json.dumps(result2, indent=2))
+    # Example 1: Simple modification
+    # task1 = "add a \"hello world\" to the main page.tsx"
+    # print("\nTask 1 - Simple Modification:")
+    # result1 = agent.analyze_task(file_tree, task1)
+    # print("\nFinal Result 1:")
+    # print(json.dumps(result1, indent=2))
+    
+    # # Example 2: Creating new component
+    # task2 = "create a new button component with a primary style"
+    # print("\nTask 2 - Creating New Component:")
+    # result2 = agent.analyze_task(file_tree, task2)
+    # print("\nFinal Result 2:")
+    # print(json.dumps(result2, indent=2))
+
+    task = "Add a function to test.py that creates a new branch"
+    base_path = "/Users/henry/Documents/GitHub/SWE-Agent-test"
+    
+    print("\nExecuting task:", task)
+    result = agent.execute_task(file_tree, task, base_path)
+    print("\nTask execution result:")
+    print(json.dumps(result, indent=2))
 
