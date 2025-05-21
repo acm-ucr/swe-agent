@@ -410,28 +410,17 @@ def ensure_repo_cloned(owner: str, repo: str, destination: str = ".") -> str:
     return True
 
 
-def repo_to_fileTree(repo_path):
-    fileTree = ""
-    allowed_files = {".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".json"}
-
-    for dirpath,dirnames,filenames in os.walk(repo_path):
-        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
-        for filename in filenames:
-            name,extension = os.path.splitext(filename)
-            if extension not in allowed_files:
-                continue
-
-            full_file_path = os.path.join(dirpath,filename)
-            try:
-                with open(full_file_path,"r", encoding="utf-8") as f:
-                    content = f.read()
-                relative_path = os.path.relpath(full_file_path,repo_path) 
-                fileTree += f"\n/{relative_path}\n---\n{content}\n"
-            except Exception as e:
-                print(f"Skipping file {full_file_path}: {e}")
-                continue
-    return fileTree
-
+def repo_to_fileTree(start_path, indent =""):
+    tree = ""
+    entries = sorted(os.listdir(start_path))
+    for i, entry in enumerate(entries):
+        path = os.path.join(start_path, entry)
+        connector = "└── " if i == len(entries) - 1 else "├── "
+        tree += indent + connector + entry + "\n"
+        if os.path.isdir(path):
+            extension = "    " if i == len(entries) - 1 else "│   "
+            tree += repo_to_fileTree(path, indent + extension)
+    return tree
 
 
 
@@ -467,5 +456,7 @@ def main():
 
 
 if __name__ == "__main__":
-    repo_path = ensure_repo_cloned("jeli04","acm-hydra")
+    ensure_repo_cloned("jeli04","acm-hydra")
+    print(repo_to_fileTree(r"./acm-hydra"))
+
 

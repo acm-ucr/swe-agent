@@ -242,7 +242,7 @@ class CodingAgent(Node):
                 
         #4. Call Henry's function
         file_tree = repo_to_fileTree(target_dir)
-
+        print(file_tree)
         print("\nTask 1 - Simple Modification:")
         result1 = agent.analyze_task(file_tree, task1)
         print("\nFinal Result 1:")
