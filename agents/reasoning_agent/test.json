@@ -1,0 +1,7 @@
+{
+    "feature_branch_name": "stanleylew5/aggregator",
+    "edited_file": "test.py",
+    "original_task": "Add in a line into test.py that prints the result of 2 + 2",
+    "changes_to_file": "print(2+2)",
+    "status": false
+}
