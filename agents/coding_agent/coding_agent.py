@@ -25,13 +25,13 @@ class CodingAgent(Node):
             str: The shell command to run the script.
         """
         instruction = (
-            f"You are a helpful coding assistant. Based on the file extension and context, determine the appropriate shell command to run the script: {script_path}. "
+            f"You are a precise and obedient coding assistant. Based on the file extension and context, determine the appropriate shell command to run the script: {script_path}. "
             "Say ONLY the command. Your exact response will be used for the command. You will be punished for any additional words or explanations."
         )
         response = self.instruct(instruction)
         return response.strip()
 
-    def check_status(self, script_path: str, id: str) -> str:
+    def check_status(self, script_path: str, id: str) -> tuple:
         """
         Checks if the given script runs successfully using a specified command.
 
@@ -49,9 +49,9 @@ class CodingAgent(Node):
             print(f"Generated command: {shell_command}")
             run_command(shell_command, session_name)
             output = retrieve_subprocess_output(session_name)
-            return output
+            return output, "success"
         except Exception as e:
-            return str(e)
+            return str(e), "fail"
 
     def is_successful_output(self, output: str) -> dict:
         """
@@ -65,7 +65,7 @@ class CodingAgent(Node):
         """
         # Convert dict output to string if needed
         instruction = (
-            f"You are a helpful assistant. Given the following script output, determine if the script ran successfully. "
+            f"You are a precise and obedient assistant. Given the following script output, determine if the script ran successfully. "
             f"Respond ONLY with 'success' if successful, or 'fail' if not. You will be severely punished for saying more than 1 word. Output: {output}"
         )
         response = self.instruct(instruction).strip().lower()
@@ -85,9 +85,13 @@ if __name__ == "__main__":
     with open(dummy_script_path, "w") as f:
         f.write("print('Hello, World!')\n" \
         "print('This is a test script.')")
-    id = "12345"
+    id = "11111"
     result = agent.check_status(dummy_script_path, id)
     print("Check Status Result:")
-    print(agent.is_successful_output(result))
+    if result[1] == "fail":
+        print({"status": "fail", "output": result[0]})
+        quit()
+    else:
+        print(agent.is_successful_output(result))
 
     os.remove(dummy_script_path)
