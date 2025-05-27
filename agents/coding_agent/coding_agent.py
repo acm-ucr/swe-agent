@@ -1,4 +1,6 @@
-import ollama 
+import os
+import json
+import ollama
 from agents.node import Node
 from shared.shell_tools import open_subprocess, run_command, retrieve_subprocess_output
 
@@ -14,19 +16,36 @@ class CodingAgent(Node):
 
         return response
     
-    def generate_command(self, script_path: str) -> str:
+    def generate_command(self, script_path: str):
         """
-        Determines the shell command to use to run the given script.
+        Determines the shell command to use to run the given script or project directory.
 
         Args:
-            script_path (str): The path to the script to classify.
+            script_path (str): The path to the script file or project directory.
 
         Returns:
-            str: The shell command to run the script.
+            str: The shell command to run the script or project.
         """
+        # Search for package.json in the root
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+        package_json_path = os.path.join(workspace_root, 'package.json')
+        if os.path.exists(package_json_path):
+            try:
+                with open(package_json_path, "r", encoding="utf-8") as f:
+                    package_data = json.load(f)
+                scripts = package_data.get("scripts", {})
+                if "dev" in scripts:
+                    return "npm i && npm run dev"
+                elif "start" in scripts:
+                    return "npm i && npm start"
+            except Exception:
+                pass
+
+        # Otherwise, use LLM to generate the command
         instruction = (
-            f"You are a precise and obedient coding assistant. Based on the file extension and context, determine the appropriate shell command to run the script: {script_path}. "
-            "Say ONLY the command. Your exact response will be used for the command. You will be punished for any additional words or explanations."
+            f"You are a precise and obedient coding assistant. "
+            f"Based on the file extension and context, determine the appropriate shell command to run the script: {script_path}. "
+            f"Say ONLY the command. Your exact response will be used for the command. You will be punished for any additional words or explanations."
         )
         response = self.instruct(instruction)
         return response.strip()
