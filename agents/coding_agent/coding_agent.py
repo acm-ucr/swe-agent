@@ -220,14 +220,18 @@ class CodingAgent(Node):
         Returns:
             json: {"status": "success" or "fail", "output": output}
         """
-        # Convert dict output to string if needed
-        instruction = (
-            f"You are a precise and obedient assistant. Given the following script output, determine if the script ran successfully. "
-            f"Respond ONLY with 'success' if successful, or 'fail' if not. You will be severely punished for saying more than 1 word. Output: {output}"
-        )
-        response = self.instruct(instruction).strip().lower()
-        status = "success" if response == "success" else "fail"
-        return {"status": status, "output": output}
+        max_retries = 3
+        for _ in range(max_retries):
+            instruction = (
+                f"You are a precise and obedient assistant. Given the following script output, determine if the script ran successfully. "
+                f"Respond ONLY with 'success' if successful, or 'fail' if not. You will be severely punished for saying more than 1 word. Output: {output}"
+            )
+            response = self.instruct(instruction).strip().lower()
+            if response in ("success", "fail"):
+                status = "success" if response == "success" else "fail"
+                return {"status": status, "output": output}
+        # If no valid response after retries, default to fail
+        return {"status": "fail", "output": output}
     
 
 if __name__ == "__main__":
