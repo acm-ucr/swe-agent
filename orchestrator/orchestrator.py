@@ -4,6 +4,7 @@ import time
 import os
 from agents.assignment_agent.assignment_agent import AssignmentAgent
 from orchestrator.publisher import publish_text
+from shared.log_tools import print_action, log_interaction
 
 class Orchestrator:
     def __init__(self, model_name, backend, sys_msg, devices):
@@ -32,8 +33,8 @@ class Orchestrator:
         return None
 
     
-    def stream_tasks(self, task_list):
-        print("=== Assigning Tasks ===")
+    def stream_tasks(self, task_list, log_path=""):
+        print_action("=== Assigning Tasks ===", color="blue")
         while True:
             result = self.assignment_agent.classify_task_list(task_list)
             if len(result['regular_model']) == 0 and len(result['thinking_model']) == 0:
@@ -45,8 +46,7 @@ class Orchestrator:
                 print("Unable to complete")
                 return False
 
-        print(self.devices)
-        print("=== Streaming Tasks ===")
+        print_action("=== Streaming Tasks ===", color="blue")
         for task_list, model_type in [
             (result["regular_model"], "regular"),
             (result["thinking_model"], "thinking")
@@ -60,8 +60,18 @@ class Orchestrator:
                 ip = device['ip']
                 port = device['port']
 
-                publish_text(task_string, ip, port, topics, task_string)
+                # publish_text(task_string, ip, port, topics, task_string)
                 print(f"Sent task {task['id']} to device {device['id']} at {ip}:{port}")
+
+                # log 
+                log_interaction(log_path, 
+                {
+                    "agent": "interaction",
+                    "task": task,
+                    "device": device
+                })
+
+        print_action("=== Finished Streaming ===", color="blue")
 
         return True
     

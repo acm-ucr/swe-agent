@@ -21,7 +21,8 @@ def setup_logs(type="runs"):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     file_name = f'{timestamp}.json'
     absolute_path = os.path.abspath("logs")
-    log_path = absolute_path + "/" + type + "/" + file_name
+    # log_path = absolute_path + "/" + type + "/" + file_name
+    log_path = absolute_path + "\\" + type + "\\" + file_name
 
     # write to folder based on type
     with open(log_path, 'w') as f:
