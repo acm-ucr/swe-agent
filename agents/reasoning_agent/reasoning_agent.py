@@ -48,8 +48,8 @@ Reply:
         # Set the correct owner and repo for your GitHub repository
         owner = "acm-ucr"
         repo = "swe-agent"
-        head = os.getenv("GITHUB_BRANCH")
-        base = os.getenv("GITHUB_BASE") or "main"
+        head = task_data.get("feature_branch_name")
+        base = "main"
 
         print(f"✅ Task complete. Merging branch '{head}' into '{base}' on {owner}/{repo}...")
         merge_result = merge_github_branch(owner, repo, head, base)
