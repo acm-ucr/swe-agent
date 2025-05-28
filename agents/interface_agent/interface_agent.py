@@ -1,7 +1,3 @@
-# TodoL Convert multimodal input like image to text json
-#
-#Override instruct in reasoning agent
-
 # Run with python -m agents.interface_agent.interface_agent
 
 import ollama
@@ -93,12 +89,9 @@ if __name__ == "__main__":
     with open('agents/interface_agent/system_prompt.txt', 'r', encoding='utf-8') as file:
         sys_msg = file.read()
 
-    model = "gemma3:12b"
+    model = "gemma3:4b"
     temperature = 0.5
-
     interfaceAgent = InterfaceAgent(model, "ollama", sys_msg, temperature)
-
-
     interfaceAgent.clear()
 
     while (True):
