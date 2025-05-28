@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 # === Class Definition ===
 from agents.node import Node
+from shared.github_tools import merge_github_branch  # <-- Import the merge function
 
 class ReasoningAgent(Node):
     def __init__(self, model_name, backend, sys_msg):
@@ -41,3 +42,17 @@ Reply:
     task_data["problem"] = None if task_data["status"] else response
 
     print(json.dumps(task_data, indent=2))
+
+    # If approved, merge the branch into main
+    if task_data["status"]:
+        # Set the correct owner and repo for your GitHub repository
+        owner = "acm-ucr"
+        repo = "swe-agent"
+        head = os.getenv("GITHUB_BRANCH")
+        base = os.getenv("GITHUB_BASE") or "main"
+
+        print(f"✅ Task complete. Merging branch '{head}' into '{base}' on {owner}/{repo}...")
+        merge_result = merge_github_branch(owner, repo, head, base)
+        print("Merge result:", merge_result)
+    else:
+        print("Task not complete. See problem above.")

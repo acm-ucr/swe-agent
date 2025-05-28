@@ -23,7 +23,7 @@ def main():
     }
 
       """  # Use your actual prompt
-    correction_prompt = "Your previous response was not valid JSON. ..."
+    correction_prompt = "Your previous response was not valid JSON. ... State and explain specifically why it is not valid JSON"
     coding_agent = CodingAgent("cogito:3b", "ollama", system_prompt, correction_prompt)
     reasoning_agent = ReasoningAgent("cogito:3b", "ollama", "You are a code reviewing agent.")
 
