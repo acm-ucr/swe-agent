@@ -5,6 +5,7 @@ import re
 from agents.node import Node
 from agents.interface_agent.util import unzip_file
 from agents.interface_agent.util import convert_to_base64
+from shared.file_tools import extract_json
 
 class InterfaceAgent(Node):
     def __init__(self, model_name, backend, sys_msg, temperature):
@@ -98,7 +99,12 @@ if __name__ == "__main__":
         prompt = input(">>> ")
         response = interfaceAgent.instruct(prompt)
         print(response)
+        
+        tasks = extract_json(response)
+        if tasks is not None:
+            break
 
+    print(tasks)
 
 
 
