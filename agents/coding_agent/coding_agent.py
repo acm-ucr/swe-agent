@@ -40,7 +40,6 @@ class CodingAgent(Node):
 
             # Extract the JSON array from the response
             content = response['message']['content']
-            print("LLM raw response:", repr(content)) # bro pls work bro pls im debugging pls pls pls KMS
             
             if '<thinking>' in content:
                 # Extract everything after the last </thinking> tag
