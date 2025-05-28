@@ -1,0 +1,122 @@
+[
+    {
+      "id": 1,
+      "description": "Integrate Google Maps API to display location picker"
+    },
+    {
+      "id": 2,
+      "description": "Mock API calls in React component tests"
+    },
+    {
+      "id": 3,
+      "description": "Create endpoint for fetching order history by user ID"
+    },
+    {
+      "id": 4,
+      "description": "Design login form UI with client-side validation"
+    },
+    {
+      "id": 5,
+      "description": "Connect app to external CRM system via REST API"
+    },
+    {
+      "id": 6,
+      "description": "Add support for uploading files to S3 via API gateway"
+    },
+    {
+      "id": 7,
+      "description": "Connect to Stripe API for payment processing"
+    },
+    {
+      "id": 8,
+      "description": "Integrate Google Maps API to display location picker"
+    },
+    {
+      "id": 9,
+      "description": "Style dashboard page with CSS grid and Flexbox"
+    },
+    {
+      "id": 10,
+      "description": "Set up PostgreSQL database schema for product inventory"
+    },
+    {
+      "id": 11,
+      "description": "Implement dark mode toggle with localStorage persistence"
+    },
+    {
+      "id": 12,
+      "description": "Configure Nginx reverse proxy for backend service"
+    },
+    {
+      "id": 13,
+      "description": "Consume OpenWeather API to fetch and display current weather"
+    },
+    {
+      "id": 14,
+      "description": "Mock API calls in React component tests"
+    },
+    {
+      "id": 15,
+      "description": "Implement dark mode toggle with localStorage persistence"
+    },
+    {
+      "id": 16,
+      "description": "Connect to Stripe API for payment processing"
+    },
+    {
+      "id": 17,
+      "description": "Deploy app to AWS EC2 instance with custom domain"
+    },
+    {
+      "id": 18,
+      "description": "Create Jest unit tests for utility functions"
+    },
+    {
+      "id": 19,
+      "description": "Deploy app to AWS EC2 instance with custom domain"
+    },
+    {
+      "id": 20,
+      "description": "Consume OpenWeather API to fetch and display current weather"
+    },
+    {
+      "id": 21,
+      "description": "Create navbar with dropdown menus in React"
+    },
+    {
+      "id": 22,
+      "description": "Connect to Stripe API for payment processing"
+    },
+    {
+      "id": 23,
+      "description": "Add support for uploading files to S3 via API gateway"
+    },
+    {
+      "id": 24,
+      "description": "Add integration test for user login and dashboard rendering"
+    },
+    {
+      "id": 25,
+      "description": "Configure Nginx reverse proxy for backend service"
+    },
+    {
+      "id": 26,
+      "description": "Add support for uploading files to S3 via API gateway"
+    },
+    {
+      "id": 27,
+      "description": "Provision infrastructure with Terraform for development and staging environments"
+    },
+    {
+      "id": 28,
+      "description": "Provision infrastructure with Terraform for development and staging environments"
+    },
+    {
+      "id": 29,
+      "description": "Set up GitHub Actions CI/CD pipeline for testing and deployment"
+    },
+    {
+      "id": 30,
+      "description": "Configure Nginx reverse proxy for backend service"
+    }
+]

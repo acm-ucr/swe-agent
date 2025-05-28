@@ -1,0 +1,24 @@
+{
+    "device1": {
+        "ip": "10.13.232.23",
+        "port": "5555",
+        "type": "host",
+        "model": 0,
+        "status": 1
+    },
+    "device2": {
+        "ip": "10.13.173.138",
+        "port": "5555",
+        "type": "client",
+        "model": 1,
+        "status": 1
+    },
+    "device3": {
+        "ip": "10.13.173.138",
+        "port": "5555",
+        "type": "client",
+        "model": 1,
+        "status": 0
+    } 
+}
+

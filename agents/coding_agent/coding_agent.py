@@ -160,7 +160,6 @@ if __name__ == "__main__":
     import os
 
     load_dotenv() 
-
     # Setup prompts 
     system_prompt = """
                         You're a pro at Next.js and determining which files to modify / create given a task from your boss. He'll kill you and your family if you modify the wrong files or create files we don't need.
