@@ -1,6 +1,8 @@
 import pyfiglet
 import json
 import os
+import zmq 
+import threading
 from colorama import init, Fore, Style
 from agents.interface_agent.interface_agent import InterfaceAgent 
 from agents.review_agent.review_agent import ReviewAgent
@@ -9,8 +11,48 @@ from shared.setup_tools import read_initial_instructions, setup_logs
 from shared.log_tools import log_interaction, print_action
 from shared.file_tools import extract_json
 from orchestrator.orchestrator import Orchestrator
+from orchestrator.client import start_handshake_server, text_listener   
 
-def run_agent():
+
+def run_code_agent():
+    # Render ASCII art banner
+    banner = pyfiglet.figlet_format("SWE Agent", font="slant")
+
+    # Print in light blue
+    print(Fore.LIGHTBLUE_EX + banner + Style.RESET_ALL)
+
+    # intialize variables 
+    path = r"C:\Users\10660\Projects\swe-agent\instructions\test2.json" # change later
+    instructions = read_initial_instructions(path)
+    log_path = setup_logs(type='tests')
+    with open("instructions/code_only/device.json") as f:
+        device_config = json.load(f)
+
+    # intialize agent
+    code_agent = CodingAgent("cogito:3b", "ollama", instructions['code_prompt'], instructions['code_prompt'])
+
+    # listen for all assigned tasks 
+    while True:
+        receiver = device_config["devices"]["receiver"]
+        sender_ip = device_config["devices"]["sender"]["ip"]
+        context = zmq.Context()
+
+        threading.Thread(
+            target=start_handshake_server,
+            args=(context, receiver["handshake_port"]),
+            daemon=True
+        ).start()
+
+        text_listener(context, sender_ip)
+
+    # complete all assigned tasks 
+    
+
+    # send to orchestrator
+
+
+
+def run_main_agent():
     # Render ASCII art banner
     banner = pyfiglet.figlet_format("SWE Agent", font="slant")
 
@@ -55,7 +97,6 @@ def run_agent():
     # intialize agents
     interface_agent = InterfaceAgent("gemma3:12b", "ollama", sys_msg=instructions['interaction_prompt'], temperature=0.5)
     orchestrator_agent = Orchestrator("cogito:3b", "ollama", sys_msg=instructions['orchestrator_prompt'], devices=devices)
-    code_agent = CodingAgent("qwen2.5:7b", "ollama", instructions['code_prompt'], instructions['code_prompt'])
 
     # interaction 
     while True:
@@ -92,7 +133,7 @@ def run_agent():
 
 
 if __name__ == "__main__":
-    run_agent()
+    run_main_agent()
 
 
 # test

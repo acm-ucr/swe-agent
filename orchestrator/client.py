@@ -1,6 +1,7 @@
 import zmq
 import json
 import threading
+import time
 
 def start_handshake_server(context, port):
     socket = context.socket(zmq.REP)
@@ -15,23 +16,35 @@ def start_handshake_server(context, port):
     finally:
         socket.close()
 
-def text_listener(context, publisher_ip):
+def text_listener(context, publisher_ip, inactivity_timeout=10):
     socket = context.socket(zmq.SUB)
     socket.connect(f"tcp://{publisher_ip}:5555")
-
     socket.setsockopt_string(zmq.SUBSCRIBE, "default")
-
     print(f"[Receiver] Listening for text messages...")
+
+    last_received = time.time()
 
     try:
         while True:
-            message = socket.recv_string()
-            topic, content = message.split(" ", 1)
-            print(f"[Receiver] Received text: {content} (Topic: {topic})")
+            if socket.poll(timeout=1000):  # Timeout is in milliseconds
+                try: 
+                    message = socket.recv_string()
+                except zmq.error.ZMQError:
+                    break
+                topic, content = message.split(" ", 1)
+                print(f"[Receiver] Received text: {content} (Topic: {topic})")
+                last_received = time.time()
+            else:
+                if time.time() - last_received > inactivity_timeout:
+                    print(f"No messages received for {inactivity_timeout} seconds. Shutting down receiver...")
+                    break
     except KeyboardInterrupt:
-        print("Shutting down receiver...")
-        socket.close()
-        context.term()
+        print("Shutting down receiver (keyboard interrupt)...")
+    finally:
+        try:
+            socket.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     with open("orchestrator/ip.json") as f:
