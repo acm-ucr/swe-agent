@@ -32,24 +32,33 @@ def run_code_agent():
     code_agent = CodingAgent("cogito:3b", "ollama", instructions['code_prompt'], instructions['code_prompt'])
 
     # listen for all assigned tasks 
-    while True:
-        receiver = device_config["devices"]["receiver"]
-        sender_ip = device_config["devices"]["sender"]["ip"]
-        context = zmq.Context()
+    receiver = device_config["devices"]["receiver"]
+    sender_ip = device_config["devices"]["sender"]["ip"]
+    context = zmq.Context()
 
-        threading.Thread(
-            target=start_handshake_server,
-            args=(context, receiver["handshake_port"]),
-            daemon=True
-        ).start()
+    threading.Thread(
+        target=start_handshake_server,
+        args=(context, receiver["handshake_port"]),
+        daemon=True
+    ).start()
 
-        text_listener(context, sender_ip)
+    tasks = text_listener(context, sender_ip)
 
     # complete all assigned tasks 
-    
+    file_tree = """
+                    app/
+                    page.tsx
+                    notrelevant.tsx
+                """
+    for i, task in enumerate(tasks):
+        result1 = code_agent.analyze_task(file_tree, task)
 
-    # send to orchestrator
+        # result = code_agent.check_status(dummy_script_path, id)
 
+
+    # send to aggregator
+ 
+                        
 
 
 def run_main_agent():

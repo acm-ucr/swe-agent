@@ -104,37 +104,40 @@ def main():
     context.term()
 
 if __name__ == "__main__":
-    # main()
-    model = "cogito:3b"
-    backend = "ollama"
-    sys_msg = """
-                You are a task classifier. You can only reply with one word.
-            """
-    devices = {
-        "regular": [
-            {
-                "id": 1,
-                "ip": 1234,
-                "port": 5555,
-                "status": "open"  # open, closed
-            }
-        ],
-        "thinking": [
-            {
-                "id": 2,
-                "ip": 1234,
-                "port": 5555,
-                "status": "open"  # open, closed
-            },
-        ]
-    }
-    agent = Orchestrator(model, backend, sys_msg, devices)
+    main()
 
-    # Load tasks from JSON
-    project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    task_list_path = os.path.join(project_dir, "tests/task_list_5.json")
+# if __name__ == "__main__":
+#     # main()
+#     model = "cogito:3b"
+#     backend = "ollama"
+#     sys_msg = """
+#                 You are a task classifier. You can only reply with one word.
+#             """
+#     devices = {
+#         "regular": [
+#             {
+#                 "id": 1,
+#                 "ip": "10.13.235.255",
+#                 "port": 5555,
+#                 "status": "open"  # open, closed
+#             }
+#         ],
+#         # "thinking": [
+#         #     {
+#         #         "id": 2,
+#         #         "ip": 1234,
+#         #         "port": 5555,
+#         #         "status": "open"  # open, closed
+#         #     },
+#         # ]
+#     }
+#     agent = Orchestrator(model, backend, sys_msg, devices)
 
-    with open(task_list_path, "r") as f:
-        task_list = json.load(f)
+#     # Load tasks from JSON
+#     project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+#     task_list_path = os.path.join(project_dir, "tests/task_list_5.json")
 
-    agent.stream_tasks(task_list)
+#     with open(task_list_path, "r") as f:
+#         task_list = json.load(f)
+
+#     agent.stream_tasks(task_list)

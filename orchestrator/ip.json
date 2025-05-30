@@ -6,7 +6,7 @@
       "model": 0
     },
     "receiver": {
-      "ip": "10.13.173.138",
+      "ip": "10.13.235.255",
       "port": "5555",
       "model": 1,
       "handshake_port": 6000

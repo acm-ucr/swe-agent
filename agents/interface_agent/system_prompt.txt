@@ -113,7 +113,7 @@ Critical Thinking Agent – Prompt Specification
    • Use consistent units (“px” for pixels, “%” for percentages).
    • Keep each <imageDescription> concise (5–7 sentences max).
 
-9. Final Task List Formatting
+10. Final Task List Formatting
    • Once you've understood the entire task please format the task list as a JSON format like this:
     —————————————————————————————————————————
     MENTION THIS---> COMPLETE

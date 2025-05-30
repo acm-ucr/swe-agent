@@ -23,6 +23,7 @@ def text_listener(context, publisher_ip, inactivity_timeout=10):
     print(f"[Receiver] Listening for text messages...")
 
     last_received = time.time()
+    contents = []
 
     try:
         while True:
@@ -34,6 +35,7 @@ def text_listener(context, publisher_ip, inactivity_timeout=10):
                 topic, content = message.split(" ", 1)
                 print(f"[Receiver] Received text: {content} (Topic: {topic})")
                 last_received = time.time()
+                contents.append(content)
             else:
                 if time.time() - last_received > inactivity_timeout:
                     print(f"No messages received for {inactivity_timeout} seconds. Shutting down receiver...")
@@ -45,6 +47,8 @@ def text_listener(context, publisher_ip, inactivity_timeout=10):
             socket.close()
         except Exception:
             pass
+    
+    return contents
 
 if __name__ == "__main__":
     with open("orchestrator/ip.json") as f:
