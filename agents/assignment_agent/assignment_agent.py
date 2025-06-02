@@ -34,26 +34,24 @@ class AssignmentAgent(Node):
         
         return category
 
+    def classify_task_list(self, task_list):
+        result = {"regular_model": [], "thinking_model": []}
 
-# === Main function ===
-def classify_task_list(agent, task_list):
-    result = {"regular_model": [], "thinking_model": []}
+        for task in task_list:
+            task_id = task.get("id")
+            desc = task.get("description")
+            if not task_id or not desc:
+                print(f"Skipping invalid task: {task}")
+                continue
 
-    for task in task_list:
-        task_id = task.get("id")
-        desc = task.get("description")
-        if not task_id or not desc:
-            print(f"Skipping invalid task: {task}")
-            continue
+            try:
+                category = self.classify_task(task_id, desc)
+                result[category].append(task)
+                print(f"✓ Task {task_id} → {category}")
+            except Exception as e:
+                print(f"✗ Failed to classify task {task_id}: {e}")
 
-        try:
-            category = agent.classify_task(task_id, desc)
-            result[category].append(task)
-            print(f"✓ Task {task_id} → {category}")
-        except Exception as e:
-            print(f"✗ Failed to classify task {task_id}: {e}")
-
-    return result
+        return result
 
 
 # === Script entry point ===
@@ -73,8 +71,8 @@ if __name__ == "__main__":
                 """
 
     # Load tasks from JSON
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    task_list_path = os.path.join(current_dir, "task_list_1000.json")
+    project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    task_list_path = os.path.join(project_dir, "tests/task_list_30.json")
 
     with open(task_list_path, "r") as f:
         task_list = json.load(f)
@@ -82,10 +80,10 @@ if __name__ == "__main__":
     agent = AssignmentAgent(MODEL, BACKEND, PROMPT)
 
     print("=== Assigning Tasks ===")
-    result = classify_task_list(agent, task_list)
+    result = agent.classify_task_list(task_list)
 
     # Save to file
-    output_path = os.path.join(current_dir, "model_assignment.json")
+    output_path = os.path.join(project_dir, "tests/model_assignment.json")
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)
 

@@ -2,3 +2,5 @@
 */__pycache__
 logs/
 */*/__pycache__
+logs/*
+tests/
