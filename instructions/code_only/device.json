@@ -1,6 +1,17 @@
 {
-    "id": 1,
-    "ip": 1234,
-    "port": 5555,
-    "status": "open" 
+    "receiver":
+    {
+        "id": 1,
+        "ip": 1234,
+        "port": 5555,
+        "status": "open",
+        "handshake_port": 5555
+    },
+    "sender":
+    {
+        "id": 1,
+        "ip": 1234,
+        "port": 5555,
+        "status": "open" 
+    }
 }

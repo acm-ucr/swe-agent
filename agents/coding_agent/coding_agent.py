@@ -7,8 +7,8 @@ from typing import Dict, List
 from shared.shell_tools import open_subprocess, run_command, retrieve_subprocess_output
 
 class CodingAgent(Node):
-    def __init__(self, model_name, backend, sys_msg, correction_prompt="Fix the JSON response to be valid."):
-        super().__init__(model_name, backend, sys_msg)
+    def __init__(self, model_name, backend, sys_prompt, correction_prompt="Fix the JSON response to be valid."):
+        super().__init__(model_name, backend, sys_prompt)
 
         # intialize attributes for intermediate steps such as models
         self.correction_prompt = correction_prompt
@@ -46,6 +46,8 @@ class CodingAgent(Node):
                 json_part = content.split('</thinking>')[-1].strip()
             else:
                 json_part = content.strip()
+
+            if len(json_part) == 0: json_part = "[""]"  # checks if no changes are needed
 
             try:
                 # Parse and validate the JSON
@@ -93,6 +95,8 @@ class CodingAgent(Node):
                 json_part = content.split('</thinking>')[-1].strip()
             else:
                 json_part = content.strip()
+            
+            if len(json_part) == 0: json_part = "[""]"  # checks if no changes are needed
 
             try:
                 result = json.loads(json_part)
@@ -111,7 +115,7 @@ class CodingAgent(Node):
 
         return []
 
-    def analyze_task(self, file_tree: str, task: str) -> Dict[str, List[str]]:
+    def analyze_task(self, file_tree: str, task: str, max_tries: int = 5) -> Dict[str, List[str]]:
         """
         Main function that analyzes a task and determines all necessary file actions.
         
@@ -123,7 +127,7 @@ class CodingAgent(Node):
             Dict[str, List[str]]: Dictionary containing all file actions needed
         """
         # Get files to modify
-        modify_result_str = self.analyze_file_tree(file_tree, task)
+        modify_result_str = self.analyze_file_tree(file_tree, task, max_tries)
         try:
             modify_result = json.loads(modify_result_str)
             if not isinstance(modify_result, list):
@@ -132,7 +136,7 @@ class CodingAgent(Node):
             modify_result = []
         
         # Get files to create
-        create_result = self.determine_files_to_create(file_tree, task)
+        create_result = self.determine_files_to_create(file_tree, task, max_tries)
         
         # Log the results
         if modify_result:

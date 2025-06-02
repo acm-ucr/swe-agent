@@ -16,10 +16,10 @@ def start_handshake_server(context, port):
     finally:
         socket.close()
 
-def text_listener(context, publisher_ip, inactivity_timeout=10):
+def text_listener(context, publisher_ip, port, topic, inactivity_timeout=10):
     socket = context.socket(zmq.SUB)
-    socket.connect(f"tcp://{publisher_ip}:5555")
-    socket.setsockopt_string(zmq.SUBSCRIBE, "default")
+    socket.connect(f"tcp://{publisher_ip}:{port}")
+    socket.setsockopt_string(zmq.SUBSCRIBE, topic)
     print(f"[Receiver] Listening for text messages...")
 
     last_received = time.time()
@@ -29,7 +29,7 @@ def text_listener(context, publisher_ip, inactivity_timeout=10):
         while True:
             if socket.poll(timeout=1000):  # Timeout is in milliseconds
                 try: 
-                    message = socket.recv_string()
+                    message = socket.recv_string(flags=zmq.NOBLOCK)
                 except zmq.error.ZMQError:
                     break
                 topic, content = message.split(" ", 1)
@@ -64,4 +64,4 @@ if __name__ == "__main__":
         daemon=True
     ).start()
 
-    text_listener(context, sender_ip)
+    text_listener(context, sender_ip, port="5555", topic="Topic")

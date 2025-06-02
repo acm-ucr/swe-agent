@@ -45,6 +45,7 @@ class Orchestrator:
             if self.total_attempts == 0:
                 print("Unable to complete")
                 return False
+        context = zmq.Context()
 
         print_action("=== Streaming Tasks ===", color="blue")
         for task_list, model_type in [
@@ -52,15 +53,16 @@ class Orchestrator:
             (result["thinking_model"], "thinking")
         ]:
             topics = [device['ip'] for device in self.devices[model_type]]
-
+            print(topics)
             for i, task in enumerate(task_list):
                 device = self.devices[model_type][i % len(self.devices[model_type])]
                 task_string = str(task['id']) + ": " + task['description']
 
                 ip = device['ip']
                 port = device['port']
+                port = 5001
 
-                # publish_text(task_string, ip, port, topics, task_string)
+                publish_text(context, ip, port, topics, task_string)
                 print(f"Sent task {task['id']} to device {device['id']} at {ip}:{port}")
 
                 # log 
@@ -104,40 +106,37 @@ def main():
     context.term()
 
 if __name__ == "__main__":
-    main()
+    # main()
+    model = "cogito:3b"
+    backend = "ollama"
+    sys_msg = """
+                You are a task classifier. You can only reply with one word.
+            """
+    devices = {
+        "regular": [
+            {
+                "id": 1,
+                "ip": "10.13.15.58",
+                "port": 5001,
+                "status": "open"  # open, closed
+            }
+        ],
+        # "thinking": [
+        #     {
+        #         "id": 2,
+        #         "ip": 1234,
+        #         "port": 5555,
+        #         "status": "open"  # open, closed
+        #     },
+        # ]
+    }
+    agent = Orchestrator(model, backend, sys_msg, devices)
 
-# if __name__ == "__main__":
-#     # main()
-#     model = "cogito:3b"
-#     backend = "ollama"
-#     sys_msg = """
-#                 You are a task classifier. You can only reply with one word.
-#             """
-#     devices = {
-#         "regular": [
-#             {
-#                 "id": 1,
-#                 "ip": "10.13.235.255",
-#                 "port": 5555,
-#                 "status": "open"  # open, closed
-#             }
-#         ],
-#         # "thinking": [
-#         #     {
-#         #         "id": 2,
-#         #         "ip": 1234,
-#         #         "port": 5555,
-#         #         "status": "open"  # open, closed
-#         #     },
-#         # ]
-#     }
-#     agent = Orchestrator(model, backend, sys_msg, devices)
+    # Load tasks from JSON
+    project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    task_list_path = os.path.join(project_dir, "tests/task_list_5.json")
 
-#     # Load tasks from JSON
-#     project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-#     task_list_path = os.path.join(project_dir, "tests/task_list_5.json")
+    with open(task_list_path, "r") as f:
+        task_list = json.load(f)
 
-#     with open(task_list_path, "r") as f:
-#         task_list = json.load(f)
-
-#     agent.stream_tasks(task_list)
+    agent.stream_tasks(task_list)

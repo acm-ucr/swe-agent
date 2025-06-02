@@ -22,27 +22,32 @@ def run_code_agent():
     print(Fore.LIGHTBLUE_EX + banner + Style.RESET_ALL)
 
     # intialize variables 
-    path = r"C:\Users\10660\Projects\swe-agent\instructions\test2.json" # change later
+    path = "/Users/jerryli/Desktop/python/SWE-Agent/instructions/code_only/test3.json" # change later
     instructions = read_initial_instructions(path)
     log_path = setup_logs(type='tests')
     with open("instructions/code_only/device.json") as f:
         device_config = json.load(f)
 
     # intialize agent
-    code_agent = CodingAgent("cogito:3b", "ollama", instructions['code_prompt'], instructions['code_prompt'])
+    code_agent = CodingAgent("cogito:3b", 
+                             "ollama", 
+                             sys_prompt=instructions['code_prompt']['system_prompt'], 
+                             correction_prompt=instructions['code_prompt']['correction_prompt'])
 
     # listen for all assigned tasks 
-    receiver = device_config["devices"]["receiver"]
-    sender_ip = device_config["devices"]["sender"]["ip"]
+    receiver_ip = device_config["receiver"]["ip"]
+    sender_ip = device_config["sender"]["ip"]
+    port =  device_config["sender"]["port"]
     context = zmq.Context()
 
-    threading.Thread(
-        target=start_handshake_server,
-        args=(context, receiver["handshake_port"]),
-        daemon=True
-    ).start()
+    # threading.Thread(
+    #     target=start_handshake_server,
+    #     args=(context, device_config["receiver"]["handshake_port"]),
+    #     daemon=True
+    # ).start()
 
-    tasks = text_listener(context, sender_ip)
+    # tasks = text_listener(context, sender_ip, port=port, topic=receiver_ip)
+    tasks = ["add a \"hello world\" to page.tsx"]
 
     # complete all assigned tasks 
     file_tree = """
@@ -51,9 +56,11 @@ def run_code_agent():
                     notrelevant.tsx
                 """
     for i, task in enumerate(tasks):
-        result1 = code_agent.analyze_task(file_tree, task)
+        output = code_agent.analyze_task(file_tree, task, max_tries=10)   # files to modify
 
         # result = code_agent.check_status(dummy_script_path, id)
+
+        print(output)
 
 
     # send to aggregator
@@ -142,7 +149,8 @@ def run_main_agent():
 
 
 if __name__ == "__main__":
-    run_main_agent()
+    run_code_agent()
+    # run_main_agent()
 
 
 # test
