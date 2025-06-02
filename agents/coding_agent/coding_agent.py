@@ -17,104 +17,6 @@ class CodingAgent(Node):
         # intialize attributes for intermediate steps such as models
         self.correction_prompt = correction_prompt
 
-    def analyze_file_tree(self, file_tree: str, task: str, max_retries: int = 3) -> str:
-        """
-        Analyzes a file tree and task to determine relevant files that need modification.
-        
-        Args:
-            file_tree (str): ASCII representation of the file tree
-            task (str): Description of the task to be performed
-            max_retries (int): Maximum number of retries for JSON validation
-            
-        Returns:
-            str: JSON string containing relevant files that need modification
-        """
-
-        messages = [
-            ('system', self.sys_msg),
-            ('user', f"File Tree:\n{file_tree}\n\nTask: {task}")
-        ]
-
-        retry_count = 0
-        while retry_count < max_retries:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{'role': role, 'content': content} for role, content in messages]
-            )
-
-            # Extract the JSON array from the response
-            content = response['message']['content']
-            
-            if '<thinking>' in content:
-                # Extract everything after the last </thinking> tag
-                json_part = content.split('</thinking>')[-1].strip()
-            else:
-                json_part = content.strip()
-
-            try:
-                # Parse and validate the JSON
-                result = json.loads(json_part)
-                return json.dumps(result)
-            except json.JSONDecodeError as e:
-                retry_count += 1
-                if retry_count < max_retries:
-                    logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
-                    messages.append(('assistant', content))
-                    messages.append(('user', self.correction_prompt))
-                else:
-                    logging.error("Maximum retries reached. Could not get valid JSON response.")
-                    return json.dumps([])
-
-        return json.dumps([])
-
-    def determine_files_to_create(self, file_tree: str, task: str, max_retries: int = 3) -> List[str]:
-        """
-        Determines which new files need to be created for the task.
-        
-        Args:
-            file_tree (str): ASCII representation of the file tree
-            task (str): Description of the task to be performed
-            max_retries (int): Maximum number of retries for JSON validation
-            
-        Returns:
-            List[str]: List of new files that need to be created
-        """
-
-        messages = [
-            ('system', self.sys_msg),
-            ('user', f"File Tree:\n{file_tree}\n\nTask: {task}")
-        ]
-
-        retry_count = 0
-        while retry_count < max_retries:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{'role': role, 'content': content} for role, content in messages]
-            )
-
-            content = response['message']['content']
-            if '<thinking>' in content:
-                json_part = content.split('</thinking>')[-1].strip()
-            else:
-                json_part = content.strip()
-
-            try:
-                result = json.loads(json_part)
-                if not isinstance(result, list):
-                    raise json.JSONDecodeError("Invalid structure", json_part, 0)
-                return result
-            except (json.JSONDecodeError, TypeError) as e:
-                retry_count += 1
-                if retry_count < max_retries:
-                    logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
-                    messages.append(('assistant', content))
-                    messages.append(('user', self.correction_prompt))
-                else:
-                    logging.error("Maximum retries reached. Could not get valid JSON response.")
-                    return []
-
-        return []
-
     def analyze_task(self, file_tree: str, task: str) -> Dict[str, List[str]]:
         """
         Main function that analyzes a task and determines all necessary file actions.
@@ -127,37 +29,25 @@ class CodingAgent(Node):
             Dict[str, List[str]]: Dictionary containing all file actions needed
         """
         system_prompt = """You are specialized in analyzing tasks and determining which files need to be modified or created.
-Your outputs should follow this structure:
-1. Begin with a <thinking> section.
-2. Inside the thinking section:
-   a. Analyze the task requirements
-   b. Consider existing files that need modification
-   c. Consider if new files need to be created
-3. Include a <reflexion> section where you:
-   a. Review your decisions
-   b. Verify if the file selections make sense
-   c. Confirm or adjust your decisions if necessary
-4. Close the thinking section with </thinking>
-5. Provide your final answer in a valid JSON array format containing only the relevant file paths.
 
-Example output format:
-<thinking>
-1. Task requires modifying test.py...
-2. No new files needed...
-3. Only test.py needs to be modified...
+Output format:
+1. Think through the task
+2. List your files between START_FILES and END_FILES markers as a JSON array
 
-<reflexion>
-- test.py exists in the file tree
-- The task specifically mentions test.py
-- No other files need modification
-</reflexion>
-</thinking>
+Example:
+Task requires modifying test.py file.
+
+START_FILES
 ["src/test.py"]
-"""
+END_FILES"""
 
-        correction_prompt = """Your previous response was not valid JSON. Please provide your answer in a valid JSON array format.
-For example: ["src/test.py"]
-Do not include any other text or formatting, just the JSON array."""
+        correction_prompt = """Your previous response was invalid. Please follow this exact format:
+
+START_FILES
+["file1.py", "file2.py"]
+END_FILES
+
+Only include the JSON array between the markers."""
 
         messages = [
             ('system', system_prompt),
@@ -175,23 +65,32 @@ Do not include any other text or formatting, just the JSON array."""
 
                 content = response['message']['content']
                 
-                # Extract JSON part
-                if '<thinking>' in content:
-                    json_part = content.split('</thinking>')[-1].strip()
-                else:
-                    json_part = content.strip()
-
-                # Parse and validate the JSON
-                result = json.loads(json_part)
-                if not isinstance(result, list):
-                    raise json.JSONDecodeError("Invalid structure", json_part, 0)
+                # Extract JSON using markers
+                result = self._extract_json_from_response(content)
+                
+                if result is None:
+                    raise json.JSONDecodeError("Could not extract valid JSON", content, 0)
 
                 # Separate paths into modify and create based on existence in file tree
                 modify_paths = []
                 create_paths = []
                 
                 for path in result:
-                    if path in file_tree or any(path in line for line in file_tree.split('\n')):
+                    # Check if file exists in file tree with various path formats
+                    path_found = False
+                    
+                    # Try exact match
+                    if path in file_tree:
+                        path_found = True
+                    
+                    # Try checking each line
+                    if not path_found:
+                        for line in file_tree.split('\n'):
+                            if path in line or path.split('/')[-1] in line:
+                                path_found = True
+                                break
+                    
+                    if path_found:
                         modify_paths.append(path)
                     else:
                         logging.info(f"Path {path} not found in file tree, will be created")
@@ -216,6 +115,67 @@ Do not include any other text or formatting, just the JSON array."""
                 return {"modify": [], "create": []}
 
         return {"modify": [], "create": []}
+    
+    def _extract_json_from_response(self, response: str) -> List[str]:
+        """
+        Extracts JSON array from structured model response.
+        
+        Args:
+            response: Raw response from the model
+            
+        Returns:
+            List[str]: Extracted file paths, or None if parsing fails
+        """
+        # Look for START_FILES and END_FILES markers
+        start_marker = "START_FILES"
+        end_marker = "END_FILES"
+        
+        # Find the markers
+        start_idx = response.find(start_marker)
+        end_idx = response.find(end_marker)
+        
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+            # Extract content between markers
+            json_start = start_idx + len(start_marker)
+            json_content = response[json_start:end_idx].strip()
+            
+            try:
+                result = json.loads(json_content)
+                if isinstance(result, list):
+                    return result
+            except json.JSONDecodeError:
+                pass
+        
+        # Fallback: look for any JSON array in the response
+        return self._fallback_json_parse(response)
+    
+    def _fallback_json_parse(self, response: str) -> List[str]:
+        """
+        Fallback JSON parsing when structured markers aren't found.
+        
+        Args:
+            response: Raw model response
+            
+        Returns:
+            List[str]: Best attempt at extracting file paths, or None if nothing found
+        """
+        # Look for JSON array patterns
+        import re
+        
+        # Find patterns like ["file1.py", "file2.py"]
+        json_pattern = r'\[[\s\S]*?\]'
+        matches = re.findall(json_pattern, response)
+        
+        for match in matches:
+            try:
+                result = json.loads(match)
+                if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                    return result
+            except json.JSONDecodeError:
+                continue
+        
+        # Final fallback: return None to trigger retry
+        return None
 
     def read_files(self, file_paths: List[str]) -> Dict[str, str]:
         """
@@ -310,27 +270,221 @@ Do not include any other text or formatting, just the JSON array."""
         Returns:
             str: New content for the file
         """
-        prompt = f"""You are a code generator. Your task is to {task}.
-
+        # For new files, generate complete content
+        if not existing_content.strip():
+            prompt = f"""Task: {task}
 File: {file_path}
-Current content:
-{existing_content}
 
-IMPORTANT INSTRUCTIONS:
-1. Output ONLY the code/content that should be in the file
-2. DO NOT include any explanations, markdown, or text like "Here's the code:"
-3. If modifying an existing file, maintain its current structure and imports
-4. If creating a new file, include all necessary imports and structure
-5. Follow the project's existing patterns and style
+START_CODE
+[complete file content here - NO explanations, NO markdown, JUST the raw code/content]
+END_CODE
 
-Output the complete file content, ready to be written to the file."""
+You must put ONLY the raw file content between START_CODE and END_CODE. Do not include any explanations, descriptions, or markdown formatting."""
+        else:
+            # For existing files, use bounded modification approach
+            return self._modify_existing_file(task, file_path, existing_content)
 
         response = ollama.chat(
             model=self.model_name,
             messages=[{'role': 'user', 'content': prompt}]
         )
         
-        return response['message']['content'].strip()
+        # Parse the structured response
+        raw_content = response['message']['content']
+        return self._extract_code_from_response(raw_content)
+    
+    def _modify_existing_file(self, task: str, file_path: str, existing_content: str) -> str:
+        """
+        Modifies existing file content using a bounded approach.
+        
+        Args:
+            task: The task description
+            file_path: Path of the file to modify
+            existing_content: Current content of the file
+            
+        Returns:
+            str: Modified file content
+        """
+        # First, determine what kind of modification is needed
+        analysis_prompt = f"""Task: {task}
+File: {file_path}
+
+Based on the task, what modification is needed?
+Output your answer between START_ANALYSIS and END_ANALYSIS markers.
+
+START_ANALYSIS
+location: [where to make the change - e.g., "end", "beginning", "after function X", "replace function Y"]
+action: [what to do - e.g., "append", "prepend", "insert", "replace"]
+END_ANALYSIS"""
+
+        analysis_response = ollama.chat(
+            model=self.model_name,
+            messages=[{'role': 'user', 'content': analysis_prompt}]
+        )
+        
+        analysis = self._parse_modification_analysis(analysis_response['message']['content'])
+        
+        # Now generate only the new content needed
+        if analysis['action'] in ['append', 'prepend', 'insert']:
+            content_prompt = f"""Task: {task}
+File: {file_path}
+
+Generate ONLY the new content to {analysis['action']} at {analysis['location']}.
+Do not include any existing content.
+
+START_CODE
+[only the new content to add - NO explanations, NO markdown, JUST the code/content to add]
+END_CODE"""
+        else:  # replace
+            content_prompt = f"""Task: {task}
+File: {file_path}
+
+Generate ONLY the replacement content for {analysis['location']}.
+
+START_CODE
+[only the replacement content - NO explanations, NO markdown, JUST the replacement code/content]
+END_CODE"""
+
+        content_response = ollama.chat(
+            model=self.model_name,
+            messages=[{'role': 'user', 'content': content_prompt}]
+        )
+        
+        new_content = self._extract_code_from_response(content_response['message']['content'])
+        
+        # Apply the modification
+        return self._apply_modification(existing_content, new_content, analysis)
+    
+    def _parse_modification_analysis(self, response: str) -> Dict[str, str]:
+        """
+        Parses the modification analysis response.
+        
+        Args:
+            response: Raw response from the model
+            
+        Returns:
+            Dict with 'location' and 'action' keys
+        """
+        # Default values
+        result = {'location': 'end', 'action': 'append'}
+        
+        # Look for markers
+        start_idx = response.find("START_ANALYSIS")
+        end_idx = response.find("END_ANALYSIS")
+        
+        if start_idx != -1 and end_idx != -1:
+            analysis_text = response[start_idx + len("START_ANALYSIS"):end_idx].strip()
+            
+            # Parse the key-value pairs
+            for line in analysis_text.split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip().lower()
+                    value = value.strip()
+                    if key in ['location', 'action']:
+                        result[key] = value
+        
+        return result
+    
+    def _apply_modification(self, existing_content: str, new_content: str, analysis: Dict[str, str]) -> str:
+        """
+        Applies the modification to the existing content.
+        
+        Args:
+            existing_content: Current file content
+            new_content: New content to add/replace
+            analysis: Dict with 'location' and 'action'
+            
+        Returns:
+            str: Modified content
+        """
+        action = analysis['action'].lower()
+        location = analysis['location'].lower()
+        
+        # Handle simple cases
+        if action == 'append' or 'end' in location:
+            # Add to end of file
+            if existing_content.endswith('\n'):
+                return existing_content + new_content
+            else:
+                return existing_content + '\n' + new_content
+        
+        elif action == 'prepend' or 'beginning' in location or 'start' in location:
+            # Add to beginning of file
+            return new_content + '\n' + existing_content
+        
+        elif action == 'replace' and 'all' in location:
+            # Replace entire content (fallback to old behavior)
+            return new_content
+        
+        else:
+            # For more complex cases, default to appending
+            # This is where you could add more sophisticated logic
+            # to find specific functions, classes, etc.
+            if existing_content.endswith('\n'):
+                return existing_content + '\n' + new_content
+            else:
+                return existing_content + '\n\n' + new_content
+    
+    def _extract_code_from_response(self, response: str) -> str:
+        """
+        Extracts code content from structured model response.
+        
+        Args:
+            response: Raw response from the model
+            
+        Returns:
+            str: Extracted code content, or fallback if parsing fails
+        """
+        # Look for START_CODE and END_CODE markers
+        start_marker = "START_CODE"
+        end_marker = "END_CODE"
+        
+        # Find the markers
+        start_idx = response.find(start_marker)
+        end_idx = response.find(end_marker)
+        
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+            # Extract content between markers
+            code_start = start_idx + len(start_marker)
+            extracted = response[code_start:end_idx].strip()
+            
+            # Basic sanity check - ensure we have some content
+            if len(extracted) > 0:
+                return extracted
+        
+        # Fallback: try to clean the raw response
+        return self._fallback_parse(response)
+    
+    def _fallback_parse(self, response: str) -> str:
+        """
+        Fallback parsing when structured markers aren't found.
+        
+        Args:
+            response: Raw model response
+            
+        Returns:
+            str: Best attempt at extracting useful content
+        """
+        # Remove common markdown artifacts
+        cleaned = response.strip()
+        
+        # Remove code block markers if present
+        if cleaned.startswith('```'):
+            lines = cleaned.split('\n')
+            if len(lines) > 1:
+                # Remove first line (```python, ```javascript, etc.)
+                lines = lines[1:]
+                # Remove last line if it's just ```
+                if lines and lines[-1].strip() == '```':
+                    lines = lines[:-1]
+                cleaned = '\n'.join(lines)
+        
+        # If response is suspiciously short (like just quotes), return minimal fallback
+        if len(cleaned.strip()) < 10:
+            return "# Generated content was too short, manual review needed\n"
+        
+        return cleaned.strip()
 
     def safe_modify_file(self, file_path: str, new_content: str) -> bool:
         """
@@ -376,18 +530,23 @@ Output the complete file content, ready to be written to the file."""
         
         # Handle file modifications
         if analysis["modify"]:
-            # Read existing files
-            file_contents = self.read_files(analysis["modify"])
+            # Read existing files with full paths
+            full_paths = []
+            for file_path in analysis["modify"]:
+                full_path = self.resolve_path(base_path, file_path)
+                full_paths.append(full_path)
+            
+            file_contents = fetch_files_from_codebase(full_paths)
             logging.info(f"Read {len(file_contents)} files for modification")
             
             # Generate and apply modifications
-            for file_path in analysis["modify"]:
+            for i, file_path in enumerate(analysis["modify"]):
                 try:
                     # Resolve the full path
-                    full_path = self.resolve_path(base_path, file_path)
+                    full_path = full_paths[i]
                     
-                    # Get existing content
-                    existing_content = file_contents.get(file_path, "")
+                    # Get existing content using full path
+                    existing_content = file_contents.get(full_path, "")
                     
                     # Generate new content
                     new_content = self.generate_file_content(task, file_path, existing_content)
@@ -525,7 +684,7 @@ if __name__ == "__main__":
     # print("\nFinal Result 2:")
     # print(json.dumps(result2, indent=2))
 
-    task = "Add a function to test.py that creates a new branch"
+    task = "Add 'hello world' to the end of test.py. dont make ANY other changes"
     base_path = "/Users/henry/Documents/GitHub/SWE-Agent-test"
     
     print("\nExecuting task:", task)
