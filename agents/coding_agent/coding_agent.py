@@ -3,7 +3,6 @@ import ollama
 import json
 import logging
 import os
-import shutil
 from datetime import datetime
 sys.path.append("/Users/henry/Documents/GitHub/swe-agent")
 from agents.node import Node
@@ -240,24 +239,6 @@ Only include the JSON array between the markers."""
             
         return abs_path
 
-    def backup_file(self, file_path: str) -> str:
-        """
-        Creates a backup of a file before modification.
-        
-        Args:
-            file_path: Path of the file to backup
-            
-        Returns:
-            str: Path of the backup file
-        """
-        if not os.path.exists(file_path):
-            return None
-            
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = f"{file_path}.{timestamp}.bak"
-        shutil.copy2(file_path, backup_path)
-        return backup_path
-
     def generate_file_content(self, task: str, file_path: str, existing_content: str = "") -> str:
         """
         Generates new content for a file based on the task and existing content.
@@ -488,7 +469,7 @@ END_CODE"""
 
     def safe_modify_file(self, file_path: str, new_content: str) -> bool:
         """
-        Safely modifies a file with error handling and backup.
+        Safely modifies a file with error handling.
         
         Args:
             file_path: Path of the file to modify
@@ -498,9 +479,6 @@ END_CODE"""
             bool: True if modification was successful
         """
         try:
-            # Create backup
-            backup_path = self.backup_file(file_path)
-            
             # Write new content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
@@ -508,9 +486,6 @@ END_CODE"""
             return True
         except Exception as e:
             logging.error(f"Error modifying file {file_path}: {str(e)}")
-            # Restore from backup if it exists
-            if backup_path and os.path.exists(backup_path):
-                shutil.copy2(backup_path, file_path)
             return False
 
     def execute_task(self, file_tree: str, task: str, base_path: str = "") -> Dict[str, List[str]]:
