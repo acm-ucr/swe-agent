@@ -276,7 +276,7 @@ You must put ONLY the raw file content between START_CODE and END_CODE. Do not i
     
     def _modify_existing_file(self, task: str, file_path: str, existing_content: str) -> str:
         """
-        Modifies existing file content using a bounded approach.
+        Modifies existing file content using a simple multi-step approach.
         
         Args:
             task: The task description
@@ -286,127 +286,247 @@ You must put ONLY the raw file content between START_CODE and END_CODE. Do not i
         Returns:
             str: Modified file content
         """
-        # First, determine what kind of modification is needed
-        analysis_prompt = f"""Task: {task}
+        # Step 1: Identify WHERE to modify (just line numbers)
+        target_line = self._identify_target_line(task, file_path, existing_content)
+        
+        # Step 2: Determine WHAT ACTION to take (simplified choices)
+        action = self._determine_action(task, target_line, existing_content)
+        
+        # Step 3: Generate CONTENT (focused generation)
+        content = self._generate_modification_content(task, file_path, action)
+        
+        # Step 4: Apply the modification
+        return self._apply_simple_modification(existing_content, target_line, action, content)
+    
+    def _identify_target_line(self, task: str, file_path: str, existing_content: str) -> int:
+        """
+        Step 1: Just identify which line number to target.
+        
+        Args:
+            task: The task description
+            file_path: Path of the file to modify
+            existing_content: Current content of the file
+            
+        Returns:
+            int: Target line number
+        """
+        lines = existing_content.split('\n')
+        total_lines = len(lines)
+        
+        # Show numbered content for line identification
+        numbered_content = '\n'.join(f"{i+1:3}: {line}" for i, line in enumerate(lines))
+        
+        line_prompt = f"""Task: {task}
 File: {file_path}
 
-Based on the task, what modification is needed?
-Output your answer between START_ANALYSIS and END_ANALYSIS markers.
+Current file with line numbers:
+{numbered_content}
 
-START_ANALYSIS
-location: [where to make the change - e.g., "end", "beginning", "after function X", "replace function Y"]
-action: [what to do - e.g., "append", "prepend", "insert", "replace"]
-END_ANALYSIS"""
+What line number should be targeted for this modification?
 
-        analysis_response = ollama.chat(
+Rules:
+- For "beginning" or "start": answer 1
+- For "end": answer {total_lines}
+- For "middle": answer {total_lines // 2}
+- For "after function X": find the line where function X ends
+- For "before function X": find the line where function X starts
+
+OUTPUT ONLY THE LINE NUMBER (just the number, nothing else):"""
+
+        response = ollama.chat(
             model=self.model_name,
-            messages=[{'role': 'user', 'content': analysis_prompt}]
+            messages=[{'role': 'user', 'content': line_prompt}]
         )
         
-        analysis = self._parse_modification_analysis(analysis_response['message']['content'])
+        # Extract line number with fallback
+        try:
+            line_text = response['message']['content'].strip()
+            # Extract first number found
+            import re
+            numbers = re.findall(r'\d+', line_text)
+            if numbers:
+                line_num = int(numbers[0])
+                # Validate and clamp to reasonable bounds
+                return max(1, min(line_num, total_lines + 1))
+        except:
+            pass
         
-        # Now generate only the new content needed
-        if analysis['action'] in ['append', 'prepend', 'insert']:
+        # Fallback based on task keywords
+        task_lower = task.lower()
+        if 'middle' in task_lower:
+            return max(1, total_lines // 2)
+        elif 'beginning' in task_lower or 'start' in task_lower:
+            return 1
+        elif 'end' in task_lower:
+            return total_lines
+        else:
+            return max(1, total_lines // 2)  # Default to middle
+    
+    def _determine_action(self, task: str, target_line: int, existing_content: str) -> str:
+        """
+        Step 2: Determine what type of action to take (simplified choices).
+        
+        Args:
+            task: The task description
+            target_line: The target line number
+            existing_content: Current content of the file
+            
+        Returns:
+            str: Action type ('add_after', 'add_before', 'replace')
+        """
+        action_prompt = f"""Task: {task}
+Target line: {target_line}
+
+What action should be taken?
+
+Choose ONE of these options:
+A) add_after - Add new content after the target line
+B) add_before - Add new content before the target line  
+C) replace - Replace the target line with new content
+
+For adding comments or new code: usually choose A (add_after)
+For replacing existing code: choose C (replace)
+For inserting at the beginning: choose B (add_before)
+
+OUTPUT ONLY THE LETTER (A, B, or C):"""
+
+        response = ollama.chat(
+            model=self.model_name,
+            messages=[{'role': 'user', 'content': action_prompt}]
+        )
+        
+        # Parse response with fallback
+        choice = response['message']['content'].strip().upper()
+        
+        if 'A' in choice or 'AFTER' in choice.upper():
+            return 'add_after'
+        elif 'B' in choice or 'BEFORE' in choice.upper():
+            return 'add_before'
+        elif 'C' in choice or 'REPLACE' in choice.upper():
+            return 'replace'
+        else:
+            # Fallback based on task keywords
+            task_lower = task.lower()
+            if 'replace' in task_lower or 'change' in task_lower:
+                return 'replace'
+            elif 'add' in task_lower or 'insert' in task_lower or 'comment' in task_lower:
+                return 'add_after'
+            else:
+                return 'add_after'  # Safe default
+    
+    def _generate_modification_content(self, task: str, file_path: str, action: str) -> str:
+        """
+        Step 3: Generate the specific content to add/replace.
+        
+        Args:
+            task: The task description
+            file_path: Path of the file to modify
+            action: The action type
+            
+        Returns:
+            str: Generated content
+        """
+        if action == 'replace':
             content_prompt = f"""Task: {task}
 File: {file_path}
+Action: Replace existing line with new content
 
-Generate ONLY the new content to {analysis['action']} at {analysis['location']}.
-Do not include any existing content.
+Generate ONLY the replacement line of code/content.
+Do not include explanations or markdown.
+Just the raw content that should replace the line.
 
-START_CODE
-[only the new content to add - NO explanations, NO markdown, JUST the code/content to add]
-END_CODE"""
-        else:  # replace
+Content:"""
+        else:  # add_after or add_before
             content_prompt = f"""Task: {task}
 File: {file_path}
+Action: Add new line of content
 
-Generate ONLY the replacement content for {analysis['location']}.
+Generate ONLY the new line of code/content to add.
+Do not include explanations or markdown.
+Just the raw content to add as a single line.
 
-START_CODE
-[only the replacement content - NO explanations, NO markdown, JUST the replacement code/content]
-END_CODE"""
+Content:"""
 
-        content_response = ollama.chat(
+        response = ollama.chat(
             model=self.model_name,
             messages=[{'role': 'user', 'content': content_prompt}]
         )
         
-        new_content = self._extract_code_from_response(content_response['message']['content'])
+        content = response['message']['content'].strip()
         
-        # Apply the modification
-        return self._apply_modification(existing_content, new_content, analysis)
+        # Clean up common artifacts
+        content = self._clean_generated_content(content)
+        
+        return content
     
-    def _parse_modification_analysis(self, response: str) -> Dict[str, str]:
+    def _clean_generated_content(self, content: str) -> str:
         """
-        Parses the modification analysis response.
+        Cleans up generated content to remove common artifacts.
         
         Args:
-            response: Raw response from the model
+            content: Raw generated content
             
         Returns:
-            Dict with 'location' and 'action' keys
+            str: Cleaned content
         """
-        # Default values
-        result = {'location': 'end', 'action': 'append'}
+        # Remove markdown code blocks
+        if content.startswith('```') and content.endswith('```'):
+            lines = content.split('\n')
+            if len(lines) > 2:
+                content = '\n'.join(lines[1:-1])
         
-        # Look for markers
-        start_idx = response.find("START_ANALYSIS")
-        end_idx = response.find("END_ANALYSIS")
+        # Remove single backticks
+        content = content.strip('`')
         
-        if start_idx != -1 and end_idx != -1:
-            analysis_text = response[start_idx + len("START_ANALYSIS"):end_idx].strip()
-            
-            # Parse the key-value pairs
-            for line in analysis_text.split('\n'):
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    key = key.strip().lower()
-                    value = value.strip()
-                    if key in ['location', 'action']:
-                        result[key] = value
+        # Remove common prefixes
+        prefixes_to_remove = ['Content:', 'Output:', 'Result:', 'Answer:']
+        for prefix in prefixes_to_remove:
+            if content.startswith(prefix):
+                content = content[len(prefix):].strip()
         
-        return result
+        # If content is suspiciously short or empty, provide fallback
+        if len(content.strip()) < 3:
+            return "# Generated content"
+        
+        return content.strip()
     
-    def _apply_modification(self, existing_content: str, new_content: str, analysis: Dict[str, str]) -> str:
+    def _apply_simple_modification(self, existing_content: str, target_line: int, action: str, content: str) -> str:
         """
-        Applies the modification to the existing content.
+        Step 4: Apply the modification to the content.
         
         Args:
             existing_content: Current file content
-            new_content: New content to add/replace
-            analysis: Dict with 'location' and 'action'
+            target_line: Line number to target
+            action: Action type ('add_after', 'add_before', 'replace')
+            content: Content to add/replace
             
         Returns:
             str: Modified content
         """
-        action = analysis['action'].lower()
-        location = analysis['location'].lower()
+        lines = existing_content.split('\n')
         
-        # Handle simple cases
-        if action == 'append' or 'end' in location:
-            # Add to end of file
-            if existing_content.endswith('\n'):
-                return existing_content + new_content
+        if action == 'add_after':
+            # Insert after target line
+            if target_line <= len(lines):
+                lines.insert(target_line, content)
             else:
-                return existing_content + '\n' + new_content
+                lines.append(content)
         
-        elif action == 'prepend' or 'beginning' in location or 'start' in location:
-            # Add to beginning of file
-            return new_content + '\n' + existing_content
+        elif action == 'add_before':
+            # Insert before target line
+            insert_pos = max(0, target_line - 1)
+            lines.insert(insert_pos, content)
         
-        elif action == 'replace' and 'all' in location:
-            # Replace entire content (fallback to old behavior)
-            return new_content
-        
-        else:
-            # For more complex cases, default to appending
-            # This is where you could add more sophisticated logic
-            # to find specific functions, classes, etc.
-            if existing_content.endswith('\n'):
-                return existing_content + '\n' + new_content
+        elif action == 'replace':
+            # Replace target line
+            if 1 <= target_line <= len(lines):
+                lines[target_line - 1] = content
             else:
-                return existing_content + '\n\n' + new_content
-    
+                # If target line doesn't exist, append instead
+                lines.append(content)
+        
+        return '\n'.join(lines)
+
     def _extract_code_from_response(self, response: str) -> str:
         """
         Extracts code content from structured model response.
@@ -659,7 +779,7 @@ if __name__ == "__main__":
     # print("\nFinal Result 2:")
     # print(json.dumps(result2, indent=2))
 
-    task = "Add 'hello world' to the end of test.py. dont make ANY other changes"
+    task = "Add a 'hello world' comment in the end of test.py. dont make ANY other changes"
     base_path = "/Users/henry/Documents/GitHub/SWE-Agent-test"
     
     print("\nExecuting task:", task)
