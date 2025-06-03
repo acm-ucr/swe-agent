@@ -15,13 +15,13 @@ from orchestrator.orchestrator import Orchestrator
 from orchestrator.client import start_handshake_server, text_listener   
 
 def parse_args():
-    parser = argparse.ArugementParser(description="SWE Agent Settings")
+    parser = argparse.ArgumentParser(description="SWE Agent Settings")
     parser.add_argument("--instruction_path", type=str, default="./instructions/")
     parser.add_argument("--device_config", type=str, default="")
     parser.add_argument("--distributed_config", type=str, default="")
     parser.add_argument("--log_type", type=str, default="test")
-    parser.add_argument("--main_device", type=bool, description="On distributed setting the task divider, no distributed the main agent", default=True)
-
+    parser.add_argument("--main_device", type=int, help="On distributed setting the task divider, no distributed the main agent", default=1)
+    return parser.parse_args()
 
 def run_code_agent(args):
     # Render ASCII art banner
@@ -75,7 +75,6 @@ def run_code_agent(args):
 
         print(output)
 
-
     # send to aggregator
  
 
@@ -97,11 +96,16 @@ def run_main_agent(args):
             distributed_config = json.load(f)
         distributed = False
     else:   
+        device_config = None
+        distributed_config = None
         distributed = True
 
     # intialize agents
     interface_agent = InterfaceAgent("gemma3:12b", "ollama", sys_msg=instructions['interaction_prompt'], temperature=0.5)
-    orchestrator_agent = Orchestrator("cogito:3b", "ollama", sys_msg=instructions['orchestrator_prompt'], devices=distributed_config)
+    orchestrator_agent = Orchestrator("cogito:3b", 
+                                      "ollama", 
+                                      sys_msg=instructions['orchestrator_prompt'], 
+                                      devices=distributed_config) if distributed else None
     code_agent = CodingAgent("cogito:3b", 
                              "ollama", 
                              sys_prompt=instructions['code_prompt']['system_prompt'], 
@@ -146,7 +150,6 @@ def run_main_agent(args):
 
 def main():
     args = parse_args()
-
     if not args.main_device:
         run_code_agent(args)
     else:
