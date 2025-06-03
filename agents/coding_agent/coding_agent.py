@@ -8,6 +8,7 @@ sys.path.append("/Users/henry/Documents/GitHub/swe-agent")
 from agents.node import Node
 from typing import Dict, List
 from shared.file_tools import fetch_files_from_codebase, edit_files_from_codebase, create_file
+from shared.shell_tools import open_subprocess, run_command, retrieve_subprocess_output
 
 class CodingAgent(Node):
     def __init__(self, model_name, backend, sys_msg, correction_prompt):
@@ -675,15 +676,6 @@ Content:"""
                     logging.error(f"Error creating {file_path}: {str(e)}")
         
         return analysis
-
-    def instruct(self, instruction):
-        """
-        Instructs the agent to perform a task.
-        """
-        # use this as the function to call, modify it if neccessary 
-        response = super().instruct(instruction)
-
-        return response
     
     def generate_command(self, script_path: str):
         """
@@ -760,29 +752,18 @@ Content:"""
         status = "success" if response == "success" else "fail"
         return {"status": status, "output": output}
     
+    def instruct(self, instruction):
+        """
+        Instructs the agent to perform a task.
+        """
+        # use this as the function to call, modify it if neccessary 
+        response = super().instruct(instruction)
+
+        return response
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
     import os
-    
-    load_dotenv()
-    
-    # check file status test
-    agent = CodingAgent("cogito:3b", "ollama", "You are a helpful assistant.")
-
-    dummy_script_path = "dummy_script.py"
-    with open(dummy_script_path, "w") as f:
-        f.write("print('Hello, World!')\n" \
-        "print('This is a test script.')")
-    id = "11111"
-    result = agent.check_status(dummy_script_path, id)
-    print("Check Status Result:")
-    if result[1] == "fail":
-        print({"status": "fail", "output": result[0]})
-        quit()
-    else:
-        print(agent.is_successful_output(result))
-
         
     # write to file test
     
@@ -824,12 +805,31 @@ if __name__ == "__main__":
                             For example: ["file1.tsx", "file2.tsx"]
                             Do not include any other text or formatting, just the JSON array.
                         """ 
+    
+    load_dotenv()
+    
+    # check file status test
+    agent = CodingAgent("cogito:3b", "ollama", "You are a helpful assistant.", correction_prompt=correction_prompt)
+
+    dummy_script_path = "dummy_script.py"
+    with open(dummy_script_path, "w") as f:
+        f.write("print('Hello, World!')\n" \
+        "print('This is a test script.')")
+    id = "11111"
+    result = agent.check_status(dummy_script_path, id)
+    print("Check Status Result:")
+    if result[1] == "fail":
+        print({"status": "fail", "output": result[0]})
+        # quit()
+    else:
+        print(agent.is_successful_output(result))
+
+
 
     # Example usage
     model_name = "cogito:3b"
     backend = "ollama"
     agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
-
     
     # Example task: Add a function to test.py that creates a new branch
     file_tree = """
