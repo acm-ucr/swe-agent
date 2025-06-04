@@ -10,11 +10,19 @@ from typing import Dict, List
 from shared.file_tools import fetch_files_from_codebase, edit_files_from_codebase, create_file
 
 class CodingAgent(Node):
-    def __init__(self, model_name, backend, sys_msg, correction_prompt):
+    def __init__(self, model_name, backend, sys_msg, correction_prompt, 
+                 task_analysis_prompt, line_identification_prompt, action_selection_prompt,
+                 replace_content_prompt, add_content_prompt, new_file_prompt):
         super().__init__(model_name, backend, sys_msg)
 
         # intialize attributes for intermediate steps such as models
         self.correction_prompt = correction_prompt
+        self.task_analysis_prompt = task_analysis_prompt
+        self.line_identification_prompt = line_identification_prompt
+        self.action_selection_prompt = action_selection_prompt
+        self.replace_content_prompt = replace_content_prompt
+        self.add_content_prompt = add_content_prompt
+        self.new_file_prompt = new_file_prompt
 
     def analyze_task(self, file_tree: str, task: str) -> Dict[str, List[str]]:
         """
@@ -27,29 +35,8 @@ class CodingAgent(Node):
         Returns:
             Dict[str, List[str]]: Dictionary containing all file actions needed
         """
-        system_prompt = """You are specialized in analyzing tasks and determining which files need to be modified or created.
-
-Output format:
-1. Think through the task
-2. List your files between START_FILES and END_FILES markers as a JSON array
-
-Example:
-Task requires modifying test.py file.
-
-START_FILES
-["src/test.py"]
-END_FILES"""
-
-        correction_prompt = """Your previous response was invalid. Please follow this exact format:
-
-START_FILES
-["file1.py", "file2.py"]
-END_FILES
-
-Only include the JSON array between the markers."""
-
         messages = [
-            ('system', system_prompt),
+            ('system', self.task_analysis_prompt),
             ('user', f"File Tree:\n{file_tree}\n\nTask: {task}")
         ]
 
@@ -105,7 +92,7 @@ Only include the JSON array between the markers."""
                 if retry_count < max_retries:
                     logging.warning(f"Attempt {retry_count}: Invalid JSON response. Error: {str(e)}")
                     messages.append(('assistant', content))
-                    messages.append(('user', correction_prompt))
+                    messages.append(('user', self.correction_prompt))
                 else:
                     logging.error("Maximum retries reached. Could not get valid JSON response.")
                     return {"modify": [], "create": []}
@@ -253,14 +240,7 @@ Only include the JSON array between the markers."""
         """
         # For new files, generate complete content
         if not existing_content.strip():
-            prompt = f"""Task: {task}
-File: {file_path}
-
-START_CODE
-[complete file content here - NO explanations, NO markdown, JUST the raw code/content]
-END_CODE
-
-You must put ONLY the raw file content between START_CODE and END_CODE. Do not include any explanations, descriptions, or markdown formatting."""
+            prompt = self.new_file_prompt.format(task=task, file_path=file_path)
         else:
             # For existing files, use bounded modification approach
             return self._modify_existing_file(task, file_path, existing_content)
@@ -316,22 +296,13 @@ You must put ONLY the raw file content between START_CODE and END_CODE. Do not i
         # Show numbered content for line identification
         numbered_content = '\n'.join(f"{i+1:3}: {line}" for i, line in enumerate(lines))
         
-        line_prompt = f"""Task: {task}
-File: {file_path}
-
-Current file with line numbers:
-{numbered_content}
-
-What line number should be targeted for this modification?
-
-Rules:
-- For "beginning" or "start": answer 1
-- For "end": answer {total_lines}
-- For "middle": answer {total_lines // 2}
-- For "after function X": find the line where function X ends
-- For "before function X": find the line where function X starts
-
-OUTPUT ONLY THE LINE NUMBER (just the number, nothing else):"""
+        line_prompt = self.line_identification_prompt.format(
+            task=task, 
+            file_path=file_path, 
+            numbered_content=numbered_content,
+            total_lines=total_lines,
+            middle_line=total_lines // 2
+        )
 
         response = ollama.chat(
             model=self.model_name,
@@ -374,21 +345,7 @@ OUTPUT ONLY THE LINE NUMBER (just the number, nothing else):"""
         Returns:
             str: Action type ('add_after', 'add_before', 'replace')
         """
-        action_prompt = f"""Task: {task}
-Target line: {target_line}
-
-What action should be taken?
-
-Choose ONE of these options:
-A) add_after - Add new content after the target line
-B) add_before - Add new content before the target line  
-C) replace - Replace the target line with new content
-
-For adding comments or new code: usually choose A (add_after)
-For replacing existing code: choose C (replace)
-For inserting at the beginning: choose B (add_before)
-
-OUTPUT ONLY THE LETTER (A, B, or C):"""
+        action_prompt = self.action_selection_prompt.format(task=task, target_line=target_line)
 
         response = ollama.chat(
             model=self.model_name,
@@ -427,25 +384,9 @@ OUTPUT ONLY THE LETTER (A, B, or C):"""
             str: Generated content
         """
         if action == 'replace':
-            content_prompt = f"""Task: {task}
-File: {file_path}
-Action: Replace existing line with new content
-
-Generate ONLY the replacement line of code/content.
-Do not include explanations or markdown.
-Just the raw content that should replace the line.
-
-Content:"""
+            content_prompt = self.replace_content_prompt.format(task=task, file_path=file_path)
         else:  # add_after or add_before
-            content_prompt = f"""Task: {task}
-File: {file_path}
-Action: Add new line of content
-
-Generate ONLY the new line of code/content to add.
-Do not include explanations or markdown.
-Just the raw content to add as a single line.
-
-Content:"""
+            content_prompt = self.add_content_prompt.format(task=task, file_path=file_path)
 
         response = ollama.chat(
             model=self.model_name,
@@ -731,10 +672,102 @@ if __name__ == "__main__":
                             Do not include any other text or formatting, just the JSON array.
                         """ 
 
+    task_analysis_prompt = """You are specialized in analyzing tasks and determining which files need to be modified or created.
+
+                        Output format:
+                        1. Think through the task
+                        2. List your files between START_FILES and END_FILES markers as a JSON array
+
+                        Example:
+                        Task requires modifying test.py file.
+
+                        START_FILES
+                        ["src/test.py"]
+                        END_FILES
+                        """
+
+    line_identification_prompt = """Task: {task}
+                        File: {file_path}
+
+                        Current file with line numbers:
+                        {numbered_content}
+
+                        What line number should be targeted for this modification?
+
+                        Rules:
+                        - For "beginning" or "start": answer 1
+                        - For "end": answer {total_lines}
+                        - For "middle": answer {middle_line}
+                        - For "after function X": find the line where function X ends
+                        - For "before function X": find the line where function X starts
+
+                        OUTPUT ONLY THE LINE NUMBER (just the number, nothing else):
+                        """
+
+    action_selection_prompt = """Task: {task}
+                        Target line: {target_line}
+
+                        What action should be taken?
+
+                        Choose ONE of these options:
+                        A) add_after - Add new content after the target line
+                        B) add_before - Add new content before the target line  
+                        C) replace - Replace the target line with new content
+
+                        For adding comments or new code: usually choose A (add_after)
+                        For replacing existing code: choose C (replace)
+                        For inserting at the beginning: choose B (add_before)
+
+                        OUTPUT ONLY THE LETTER (A, B, or C):
+                        """
+
+    replace_content_prompt = """Task: {task}
+                        File: {file_path}
+                        Action: Replace existing line with new content
+
+                        Generate ONLY the replacement line of code/content.
+                        Do not include explanations or markdown.
+                        Just the raw content that should replace the line.
+
+                        Content:
+                        """
+
+    add_content_prompt = """Task: {task}
+                        File: {file_path}
+                        Action: Add new line of content
+
+                        Generate ONLY the new line of code/content to add.
+                        Do not include explanations or markdown.
+                        Just the raw content to add as a single line.
+
+                        Content:
+                        """
+
+    new_file_prompt = """Task: {task}
+                        File: {file_path}
+
+                        START_CODE
+                        [complete file content here - NO explanations, NO markdown, JUST the raw code/content]
+                        END_CODE
+
+                        You must put ONLY the raw file content between START_CODE and END_CODE. Do not include any explanations, descriptions, or markdown formatting.
+                        """
+
     # Example usage
     model_name = "cogito:3b"
     backend = "ollama"
-    agent = CodingAgent(model_name, backend, system_prompt, correction_prompt)
+    agent = CodingAgent(
+        model_name, 
+        backend, 
+        system_prompt, 
+        correction_prompt,
+        task_analysis_prompt,
+        line_identification_prompt, 
+        action_selection_prompt,
+        replace_content_prompt, 
+        add_content_prompt, 
+        new_file_prompt
+    )
 
     
     # Example task: Add a function to test.py that creates a new branch
