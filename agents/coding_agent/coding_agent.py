@@ -705,7 +705,25 @@ class CodingAgent(Node):
 if __name__ == "__main__":
     from dotenv import load_dotenv
     import os
-        
+    
+    load_dotenv()
+
+    # check file status test
+    agent = CodingAgent("cogito:3b", "ollama", "You are a helpful assistant.")
+
+    dummy_script_path = "dummy_script.py"
+    with open(dummy_script_path, "w") as f:
+        f.write("print('Hello, World!')\n" \
+        "print('This is a test script.')")
+    id = "11111"
+    result = agent.check_status(dummy_script_path, id)
+    print("Check Status Result:")
+    if result[1] == "fail":
+        print({"status": "fail", "output": result[0]})
+        quit()
+    else:
+        print(agent.is_successful_output(result))
+
     # write to file test
     
     # Setup prompts 
