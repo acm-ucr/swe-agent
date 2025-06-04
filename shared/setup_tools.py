@@ -16,13 +16,13 @@ def read_initial_instructions(path):
         
     return instructions
 
-def setup_logs(type="runs"):
+def setup_logs(type="runs", os_type="mac"):
     # create new log file
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     file_name = f'{timestamp}.json'
     absolute_path = os.path.abspath("logs")
-    # log_path = absolute_path + "/" + type + "/" + file_name
-    log_path = absolute_path + "\\" + type + "\\" + file_name
+    if os_type=="mac" or os_type=="linux": log_path = absolute_path + "/" + type + "/" + file_name 
+    else: log_path = absolute_path + "\\" + type + "\\" + file_name
 
     # write to folder based on type
     with open(log_path, 'w') as f:

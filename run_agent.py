@@ -37,9 +37,9 @@ def run_code_agent(args):
     if args.device_config != "":
         with open(args.device_config) as f:   # "instructions/code_only/device.json"
             device_config = json.load(f)
-        distributed = False
-    else:   
         distributed = True
+    else:   
+        distributed = False
 
     # intialize agent
     code_agent = CodingAgent("cogito:3b", 
@@ -94,22 +94,31 @@ def run_main_agent(args):
             device_config = json.load(f)
         with open(args.distributed_config) as f:
             distributed_config = json.load(f)
-        distributed = False
+        distributed = True
     else:   
         device_config = None
         distributed_config = None
-        distributed = True
+        distributed = False
 
     # intialize agents
-    interface_agent = InterfaceAgent("gemma3:12b", "ollama", sys_msg=instructions['interaction_prompt'], temperature=0.5)
+    interface_agent = InterfaceAgent("gemma3:4b", "ollama", sys_msg=instructions['interaction_prompt'], temperature=0.5)
     orchestrator_agent = Orchestrator("cogito:3b", 
                                       "ollama", 
                                       sys_msg=instructions['orchestrator_prompt'], 
                                       devices=distributed_config) if distributed else None
+    # TODO temporary intialization fix later
     code_agent = CodingAgent("cogito:3b", 
                              "ollama", 
-                             sys_prompt=instructions['code_prompt']['system_prompt'], 
-                             correction_prompt=instructions['code_prompt']['correction_prompt']) if not distributed else None
+                             sys_msg=instructions['code_prompt']['system_prompt'], 
+                             correction_prompt=instructions['code_prompt']['correction_prompt'],
+                             task_analysis_prompt=instructions['code_prompt']['task_analysis_prompt'],
+                             line_identification_prompt=instructions['code_prompt']['line_identification_prompt'], 
+                             action_selection_prompt=instructions['code_prompt']['action_selection_prompt'],
+                             replace_content_prompt=instructions['code_prompt']['replace_content_prompt'], 
+                             add_content_prompt=instructions['code_prompt']['add_content_prompt'], 
+                             new_file_prompt=instructions['code_prompt']['new_file_prompt']
+                             ) if not distributed else None
+
     # interaction 
     while True:
         user_prompt = input(">>> ")
@@ -143,7 +152,12 @@ def run_main_agent(args):
 
     # code agent
     if not distributed:
-        file_tree = ""
+        file_tree = """
+                        app/
+                        page.tsx
+                        notrelevant.tsx
+                    """        
+        
         for i, task in enumerate(tasks):
             output = code_agent.analyze_task(file_tree, task, max_tries=10)   # files to modify
             # result = code_agent.check_status(dummy_script_path, id)
