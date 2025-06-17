@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # === Class Definition ===
 from agents.node import Node
-from shared.github_tools import merge_github_branch  # <-- Import the merge function
+from shared.github_tools import merge_github_branch, solve_merge_conflicts
 
 class ReasoningAgent(Node):
     def __init__(self, model_name, backend, sys_msg):
@@ -43,7 +43,6 @@ Reply:
 
     print(json.dumps(task_data, indent=2))
 
-    # If approved, merge the branch into main
     if task_data["status"]:
         owner = "acm-ucr"
         repo = "swe-agent"
@@ -51,7 +50,32 @@ Reply:
         base = "main"
 
         print(f"✅ Task complete. Merging branch '{head}' into '{base}' on {owner}/{repo}...")
+
+        # === Try GitHub API merge ===
         merge_result = merge_github_branch(owner, repo, head, base)
-        print("Merge result:", merge_result)
+
+        if merge_result is None:
+            print("⚠️ Remote merge failed — attempting to resolve merge conflicts locally with LLM...")
+
+            # === Call your local conflict solver ===
+            local_repo_path = os.getenv("LOCAL_REPO_PATH")
+            if not local_repo_path:
+                raise ValueError("Please set LOCAL_REPO_PATH environment variable.")
+
+            conflict_resolved = solve_merge_conflicts(
+                repo_path=local_repo_path,
+                base_branch=base,
+                original_task=task_data["original_task"],
+                agent=agent,
+                feature_branch=head
+            )
+
+            if conflict_resolved:
+                print("✅ Conflicts resolved & merged successfully via local solver.")
+            else:
+                print("❌ Local conflict resolution failed. Please resolve manually.")
+        else:
+            print("✅ Remote merge succeeded.")
+
     else:
         print("Task not complete. See problem above.")

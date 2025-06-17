@@ -53,7 +53,7 @@ def solve_merge_conflicts(repo_path, base_branch, original_task, agent, feature_
                 conflicted_content = f.read()
 
             # Prompt LLM to resolve
-            prompt = f""" You are an expert developer. The following file has a Git merge conflict (marked by <<<<<<<, =======, >>>>>>>). Resolve the conflict so the resulting code fulfills this task: "{original_task}". Return only the resolved file content. {conflicted_content}
+            prompt = f""" You are an expert developer. The following file has a Git merge conflict (marked by <<<<<<<, =======, >>>>>>>). Resolve the conflict so the resulting code fulfills this task: "{original_task}". If fulfilling the task seems unclear, just delete the old changes and add in the new code. Return only the resolved file content. {conflicted_content}
             """
             resolved_content = agent.instruct(prompt).strip()
 
