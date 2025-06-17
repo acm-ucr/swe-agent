@@ -46,7 +46,7 @@ def solve_merge_conflicts(repo_path, base_branch, original_task, agent, feature_
         print("Merge conflict detected. Attempting LLM resolution...")
 
         # Find conflicted files
-        conflicted_files = [item[0] for item in repo.index.unmerged_blobs().values()]
+        conflicted_files = list(repo.index.unmerged_blobs().keys())
         for file_path in conflicted_files:
             abs_path = os.path.join(repo_path, file_path)
             with open(abs_path, "r", encoding="utf-8") as f:
