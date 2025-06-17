@@ -45,7 +45,6 @@ Reply:
 
     # If approved, merge the branch into main
     if task_data["status"]:
-        # Set the correct owner and repo for your GitHub repository
         owner = "acm-ucr"
         repo = "swe-agent"
         head = task_data.get("feature_branch_name")
