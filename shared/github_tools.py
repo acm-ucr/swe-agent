@@ -34,7 +34,6 @@ def solve_merge_conflicts(repo_path, base_branch, original_task, agent, feature_
     repo = Repo(repo_path)
     origin = repo.remotes.origin
 
-    # Checkout base and pull latest
     repo.git.checkout(base_branch)
     origin.pull(base_branch)
     try:
@@ -45,24 +44,20 @@ def solve_merge_conflicts(repo_path, base_branch, original_task, agent, feature_
     except GitCommandError as e:
         print("Merge conflict detected. Attempting LLM resolution...")
 
-        # Find conflicted files
         conflicted_files = list(repo.index.unmerged_blobs().keys())
         for file_path in conflicted_files:
             abs_path = os.path.join(repo_path, file_path)
             with open(abs_path, "r", encoding="utf-8") as f:
                 conflicted_content = f.read()
 
-            # Prompt LLM to resolve
             prompt = f""" You are an expert developer. The following file has a Git merge conflict (marked by <<<<<<<, =======, >>>>>>>). Resolve the conflict so the resulting code fulfills this task: "{original_task}". If fulfilling the task seems unclear, just delete the old changes and add in the new code. Return only the resolved file content. {conflicted_content}
             """
             resolved_content = agent.instruct(prompt).strip()
 
-            # Overwrite file with resolved content
             with open(abs_path, "w", encoding="utf-8") as f:
                 f.write(resolved_content)
             print(f"Resolved conflict in {file_path} using LLM.")
 
-        # Stage, commit, and push
         repo.git.add(all=True)
         repo.git.commit("-m", f"Resolve merge conflicts in {', '.join(conflicted_files)} using LLM")
         origin.push(base_branch)

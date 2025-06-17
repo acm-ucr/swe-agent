@@ -34,10 +34,8 @@ Reply:
 - ✅ YES, the task is completed.
 - ❌ NO, the task is not completed, and explain why.
 """
-
     response = agent.instruct(prompt).strip()
 
-    # Add status + problem fields
     task_data["status"] = "✅" in response
     task_data["problem"] = None if task_data["status"] else response
 
@@ -51,13 +49,11 @@ Reply:
 
         print(f"✅ Task complete. Merging branch '{head}' into '{base}' on {owner}/{repo}...")
 
-        # === Try GitHub API merge ===
         merge_result = merge_github_branch(owner, repo, head, base)
 
         if merge_result is None:
             print("⚠️ Remote merge failed — attempting to resolve merge conflicts locally with LLM...")
 
-            # === Call your local conflict solver ===
             local_repo_path = os.getenv("LOCAL_REPO_PATH")
             if not local_repo_path:
                 raise ValueError("Please set LOCAL_REPO_PATH environment variable.")
