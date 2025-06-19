@@ -674,7 +674,7 @@ class CodingAgent(Node):
         """
         session_name = id
         try:
-            modify_result = json.loads(modify_result_str)
+            modify_result = json.loads(script_path)
             if not isinstance(modify_result, list):
                 modify_result = []
         except json.JSONDecodeError:
@@ -719,15 +719,19 @@ class CodingAgent(Node):
         return False
 
     def parse_github_url(self, url: str):
-            # Open a tmux session
-            open_subprocess(session_name)
-            shell_command = self.generate_command(script_path)
-            print(f"Generated command: {shell_command}")
-            run_command(shell_command, session_name)
-            output = retrieve_subprocess_output(session_name)
-            return output, "success"
-        except Exception as e:
-            return str(e), "fail"
+        # broken wtf
+        # try:
+        #     # Open a tmux session
+        #     open_subprocess(session_name)
+        #     shell_command = self.generate_command(script_path)
+        #     print(f"Generated command: {shell_command}")
+        #     run_command(shell_command, session_name)
+        #     output = retrieve_subprocess_output(session_name)
+        #     return output, "success"
+        # except Exception as e:
+        #     return str(e), "fail"
+        return ""
+    
 
     def is_successful_output(self, output: str) -> dict:
         """
