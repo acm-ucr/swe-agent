@@ -1,8 +1,7 @@
 import os
 import requests
-from git import Repo, exc
+from git import Repo, GitCommandError, exc
 import subprocess
-
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
@@ -16,6 +15,58 @@ HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github+json"
 }
+
+def solve_merge_conflicts(repo_path, base_branch, original_task, agent, feature_branch: str = "main",):
+    """
+    Attempts to merge feature_branch into base_branch. If conflicts occur,
+    uses the provided LLM agent to resolve them and completes the merge.
+
+    Args:
+        repo_path: The path to the local Git repository.
+        base_branch: The name of the branch to merge into (defaults to main).
+        original_task: The issue/task that should be achieved
+        agent: The agent that should be used
+        feature_branch: The name of the branch to merge from
+
+    Returns:
+        bool: True if solving the merge conflict was successful, False otherwise.
+
+    """
+    repo = Repo(repo_path)
+    origin = repo.remotes.origin
+
+    repo.git.checkout(base_branch)
+    origin.pull(base_branch)
+    try:
+        repo.git.merge(feature_branch)
+        print("Merged cleanly, no conflicts.")
+        origin.push(base_branch)
+        return True
+    except GitCommandError as e:
+        print("Merge conflict detected. Attempting LLM resolution...")
+
+        conflicted_files = list(repo.index.unmerged_blobs().keys())
+        for file_path in conflicted_files:
+            abs_path = os.path.join(repo_path, file_path)
+            with open(abs_path, "r", encoding="utf-8") as f:
+                conflicted_content = f.read()
+
+            prompt = f""" You are an expert developer. The following file has a Git merge conflict (marked by <<<<<<<, =======, >>>>>>>). Resolve the conflict so the resulting code fulfills this task: "{original_task}". If fulfilling the task seems unclear, just delete the old changes and add in the new code. Return only the resolved file content. {conflicted_content}
+            """
+            resolved_content = agent.instruct(prompt).strip()
+
+            with open(abs_path, "w", encoding="utf-8") as f:
+                f.write(resolved_content)
+            print(f"Resolved conflict in {file_path} using LLM.")
+
+        repo.git.add(all=True)
+        repo.git.commit("-m", f"Resolve merge conflicts in {', '.join(conflicted_files)} using LLM")
+        origin.push(base_branch)
+        print("Conflicts resolved, merge committed and pushed.")
+        return True
+    except Exception as e:
+        print("Unexpected error during merge:", e)
+        return False
 
 def stage_and_commit_files(repo_path: str, file_paths: list, commit_message: str) -> bool:
     """
