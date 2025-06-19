@@ -1,4 +1,6 @@
 .env
+logs/runs/*
+logs/tests/*
 */__pycache__
 logs/
 */*/__pycache__

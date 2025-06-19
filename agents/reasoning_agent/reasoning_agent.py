@@ -75,3 +75,9 @@ Reply:
 
     else:
         print("Task not complete. See problem above.")
+
+        
+class InteractionAgent(Node):
+    def __init__(self, model_name, backend, sys_msg):
+        super().__init__(model_name, backend, sys_msg)
+

@@ -1,3 +1,4 @@
+'''
 As an expert developer, I will resolve this Git merge conflict by removing the conflicting code and adding the correct line that prints 2 + 2.
 
 Here is the resolved file content:
@@ -17,3 +18,4 @@ print(4+4)
 ```
 
 This resolved code correctly fulfills the task by printing the result of adding two integers (2+2=4).
+'''

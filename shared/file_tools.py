@@ -1,3 +1,6 @@
+import re
+import json
+
 def fetch_files_from_codebase(file_paths: list) -> dict:
     """
     Fetches files from a local repository's codebase.
@@ -50,3 +53,17 @@ def create_file(name: str, type: str, path: str = "", content: str = "") -> None
     """
     with open(path + name + "." + type, 'w') as f: 
         f.write(content)
+
+def extract_json(text):
+    match = re.search(r"```json\s*([\s\S]*?)```", text)
+    if match:
+        json_str = match.group(1).strip()
+        try:
+            data = json.loads(json_str)
+            return data
+        except json.JSONDecodeError as e:
+            print("Found JSON block, but failed to parse:", e)
+            return json_str  
+    else:
+        print("No JSON block found.")
+        return None
