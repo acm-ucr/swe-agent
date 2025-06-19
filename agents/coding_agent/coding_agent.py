@@ -673,7 +673,7 @@ class CodingAgent(Node):
         """
         session_name = id
         try:
-            modify_result = json.loads(modify_result_str)
+            modify_result = json.loads(script_path)
             if not isinstance(modify_result, list):
                 modify_result = []
         except json.JSONDecodeError:
