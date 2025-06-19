@@ -47,17 +47,52 @@ def run_command(command: str, session_name: str) -> tuple:
     return captured_output
 
 
+#windows commands
+
+def run_shell_command(command: str, proc: subprocess.Popen, max_lines=30) -> str:
+    if proc.poll() is not None:
+        raise RuntimeError("PowerShell process has exited.")
+    
+    proc.stdin.write(command.strip() + "\n")
+    proc.stdin.write("echo __END__\n")
+    proc.stdin.flush()
+
+    output_lines = []
+    for _ in range(max_lines):
+        line = proc.stdout.readline()
+        print(f"DEBUG: {line.strip()}")
+        output_lines.append(line)
+        if "__END__" in line:
+            break
+    return "".join(output_lines)
+
+process = subprocess.Popen(
+    ["powershell", "-NoExit"],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    bufsize=1
+)
+
 
 if __name__ == "__main__":
     session = "my_session"
     # Start the persistent tmux session.
     # open_subprocess(session)
-    
+
+
     # Run a command in that tmux session.
     # stdout = run_command("ls -l", session)
     # stdout = run_command("cd /Users/jerryli/Desktop/python/SWE-Agent-test/test_project", session)
     # stdout = run_command("npm run dev", session)
     # stdout = run_command("C-c", session)
-    stdout = retrieve_subprocess_output(session)
-    print("Captured Output:")
-    print(stdout)
+    # stdout = retrieve_subprocess_output(session)
+
+    try:
+        print(run_shell_command('cd "C:/Users/inegi_pqetia/Documents/ACM DAS/swe-agent/acm-hydra"; git checkout -b test; git branch --show-current', process))
+
+    finally:
+        process.stdin.write("exit\n")
+        process.stdin.flush()
+        process.wait()
