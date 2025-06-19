@@ -1,0 +1,22 @@
+[
+    {
+      "id": 1,
+      "description": "Integrate Google Maps API to display location picker"
+    },
+    {
+      "id": 2,
+      "description": "Mock API calls in React component tests"
+    },
+    {
+      "id": 3,
+      "description": "Create endpoint for fetching order history by user ID"
+    },
+    {
+      "id": 4,
+      "description": "Design login form UI with client-side validation"
+    },
+    {
+      "id": 5,
+      "description": "Connect app to external CRM system via REST API"
+    }
+]

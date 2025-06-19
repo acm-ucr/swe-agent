@@ -1,0 +1,4 @@
+{
+    "sys_prompt": "You are a helpful assistant who breaks down a complex task into multple steps. Be quick and concise.",
+    "user_prompt": "Build me a shopping website with a homepage of items to browse. Also have a login feature so registered users can sell."
+}

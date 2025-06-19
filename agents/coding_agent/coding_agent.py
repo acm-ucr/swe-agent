@@ -17,7 +17,6 @@ tools = [
     generate_function_description(ensure_repo_cloned),
     generate_function_description(clone_repo),
     generate_function_description(repo_to_fileTree),
-    ...
 ]
 
 class CodingAgent(Node):
@@ -35,7 +34,7 @@ class CodingAgent(Node):
         self.add_content_prompt = add_content_prompt
         self.new_file_prompt = new_file_prompt
 
-    def analyze_task(self, file_tree: str, task: str) -> Dict[str, List[str]]:
+    def analyze_task(self, file_tree: str, task: str, max_tries: int = 5) -> Dict[str, List[str]]:
         """
         Main function that analyzes a task and determines all necessary file actions.
         
@@ -718,20 +717,17 @@ class CodingAgent(Node):
 
         return False
 
-    def parse_github_url(self, url: str):
-        # broken wtf
-        # try:
-        #     # Open a tmux session
-        #     open_subprocess(session_name)
-        #     shell_command = self.generate_command(script_path)
-        #     print(f"Generated command: {shell_command}")
-        #     run_command(shell_command, session_name)
-        #     output = retrieve_subprocess_output(session_name)
-        #     return output, "success"
-        # except Exception as e:
-        #     return str(e), "fail"
-        return ""
-    
+    def parse_github_url(self, url: str, session_name):
+        try:
+            # Open a tmux session
+            open_subprocess(session_name)
+            shell_command = self.generate_command(script_path)
+            print(f"Generated command: {shell_command}")
+            run_command(shell_command, session_name)
+            output = retrieve_subprocess_output(session_name)
+            return output, "success"
+        except Exception as e:
+            return str(e), "fail"
 
     def is_successful_output(self, output: str) -> dict:
         """

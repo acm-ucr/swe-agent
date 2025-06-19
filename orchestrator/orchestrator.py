@@ -4,6 +4,7 @@ import time
 import os
 from agents.assignment_agent.assignment_agent import AssignmentAgent
 from orchestrator.publisher import publish_text
+from shared.log_tools import print_action, log_interaction
 
 class Orchestrator:
     def __init__(self, model_name, backend, sys_msg, devices):
@@ -32,56 +33,50 @@ class Orchestrator:
         return None
 
     
-    def stream_tasks(self, task_list):
-        print("=== Assigning Tasks ===")
-        result = self.assignment_agent.classify_task_list(task_list)
+    def stream_tasks(self, task_list, log_path=""):
+        print_action("=== Assigning Tasks ===", color="blue")
+        while True:
+            result = self.assignment_agent.classify_task_list(task_list)
+            if len(result['regular_model']) == 0 and len(result['thinking_model']) == 0:
+                self.total_attempts -= 1
+            else:
+                break
 
-        all_tasks = []
+            if self.total_attempts == 0:
+                print("Unable to complete")
+                return False
+        context = zmq.Context()
+
+        print_action("=== Streaming Tasks ===", color="blue")
         for task_list, model_type in [
             (result["regular_model"], "regular"),
             (result["thinking_model"], "thinking")
         ]:
-            for task in task_list:
-                task["model_type"] = model_type
-                all_tasks.append(task)
-
-        print("=== Streaming Tasks ===")
-        while(self.total_attempts > 0):
-            for task in all_tasks:
-                print(task)
+            topics = [device['ip'] for device in self.devices[model_type]]
+            print(topics)
+            for i, task in enumerate(task_list):
+                device = self.devices[model_type][i % len(self.devices[model_type])]
                 task_string = str(task['id']) + ": " + task['description']
-                device = self.get_open_device(task['model_type'])
-
-                if device is None:
-                    continue
 
                 ip = device['ip']
                 port = device['port']
-                topics = "test"
+                port = 5001
 
-                # publish_text(task_string, ip, port, topics, task_string)
+                publish_text(context, ip, port, topics, task_string)
                 print(f"Sent task {task['id']} to device {device['id']} at {ip}:{port}")
-                all_tasks.remove(task)
-            self.total_attempts -= 1
 
-        # assuming devices is a hashmap of device name to sets where each set contains the ip 
-        # {
-        #     regular: 
-        #       device id : {ip, device type, port, status}
-        #     thinking: 
-        #       device id : {ip, device type, port, status}
-        # }
+                # log 
+                log_interaction(log_path, 
+                {
+                    "agent": "interaction",
+                    "task": task,
+                    "device": device
+                })
 
-        # assign tasks in queue system 
-        # every device has a list of tasks to complete
+        print_action("=== Finished Streaming ===", color="blue")
 
-        # until there's no tasks left in the queue 
-            # for device in self.devices:
-                # if device['status'] == "open":
-                    # assign tasks to device 
-                    # remove task from queue 
-                    # update device status to closed 
-                    # update device status to open after task is completed
+        return True
+    
 
 def main():
     topics = ["Device1", "Device2", "Device3"]
@@ -121,19 +116,19 @@ if __name__ == "__main__":
         "regular": [
             {
                 "id": 1,
-                "ip": 1234,
-                "port": 5555,
+                "ip": "10.13.15.58",
+                "port": 5001,
                 "status": "open"  # open, closed
             }
         ],
-        "thinking": [
-            {
-                "id": 2,
-                "ip": 1234,
-                "port": 5555,
-                "status": "open"  # open, closed
-            },
-        ]
+        # "thinking": [
+        #     {
+        #         "id": 2,
+        #         "ip": 1234,
+        #         "port": 5555,
+        #         "status": "open"  # open, closed
+        #     },
+        # ]
     }
     agent = Orchestrator(model, backend, sys_msg, devices)
 

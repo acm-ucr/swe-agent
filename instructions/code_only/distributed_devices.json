@@ -1,0 +1,30 @@
+{
+    "regular": [
+        {
+            "id": 1,
+            "ip": 1234,
+            "port": 5555,
+            "status": "open" 
+        },
+        {
+            "id": 2,
+            "ip": 1235,
+            "port": 5555,
+            "status": "open" 
+        },
+        {
+            "id": 3,
+            "ip": 1236,
+            "port": 5555,
+            "status": "open"  
+        }
+    ],
+    "thinking": [
+        {
+            "id": 4,
+            "ip": 1237,
+            "port": 5555,
+            "status": "open"  
+        }
+    ]
+}
